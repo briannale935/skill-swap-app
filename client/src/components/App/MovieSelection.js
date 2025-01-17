@@ -4,7 +4,7 @@ import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 function MovieSelection({ movies, selectedMovie, handleMovieChange }) {
   return (
     <FormControl fullWidth>
-      <InputLabel id="movie-select-label">Select a movie</InputLabel>
+      <InputLabel id="movie-select-label">Select a movie of your choice!</InputLabel>
       <Select
         value={selectedMovie}
         onChange={handleMovieChange}
