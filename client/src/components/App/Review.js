@@ -85,19 +85,19 @@ function Review() {
           selectedMovie={selectedMovie}
           handleMovieChange={handleMovieChange}
         />
-        {errors.selectedMovie && <Typography color="red">Select your movie</Typography>}
+        {errors.selectedMovie && <Typography color="red">Select your movie!</Typography>}
       </Grid>
       <Grid item xs={12}>
         <ReviewTitle enteredTitle={enteredTitle} handleTitleChange={handleTitleChange} />
-        {errors.enteredTitle && <Typography color="red">Enter your review title</Typography>}
+        {errors.enteredTitle && <Typography color="red">Enter your review title!</Typography>}
       </Grid>
       <Grid item xs={12}>
         <ReviewBody enteredReview={enteredReview} handleReviewChange={handleReviewChange} />
-        {errors.enteredReview && <Typography color="red">Enter your review</Typography>}
+        {errors.enteredReview && <Typography color="red">Enter your review!</Typography>}
       </Grid>
       <Grid item xs={12}>
         <ReviewRating selectedRating={selectedRating} handleRatingChange={handleRatingChange} />
-        {errors.selectedRating && <Typography color="red">Select the rating</Typography>}
+        {errors.selectedRating && <Typography color="red">Select the rating!</Typography>}
       </Grid>
       <Grid item xs={12}>
         <Button variant="contained" color="primary" onClick={handleSubmit} id="submit-button">
