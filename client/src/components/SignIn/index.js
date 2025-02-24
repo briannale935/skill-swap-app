@@ -1,70 +1,73 @@
-import * as React from 'react';
+import { useState } from "react";
+import { Container, TextField, Button, Typography } from "@mui/material";
+import { auth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "../../firebase";
 
-import Typography from "@mui/material/Typography";
-import Paper from '@mui/material/Paper';
-import { createTheme, ThemeProvider, styled } from '@mui/material/styles'
-import Grid from "@mui/material/Grid";
+function SignIn({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState("");
 
-//import BackgroundImage from "./backgroundImage.jpg"
+  const handleSubmit = async () => {
+    setError(""); // Clear previous errors
+    try {
+      let userCredential;
+      if (isSignUp) {
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const firebase_uid = user.uid;
+  
+        // ✅ Send only **email** & **firebase_uid** to backend
+        await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ firebase_uid, email }),
+        });
+  
+        console.log("User registered successfully!");
+      } else {
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        console.log("User logged in successfully!");
+      }
+  
+      onLogin(); // Proceed to the main site
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
-const serverURL = "";
 
-const opacityValue = 0.9;
-
-const lightTheme = createTheme({
-  palette: {
-    type: 'light',
-    background: {
-      default: "#ffffff"
-    },
-    primary: {
-      main: '#ef9a9a',
-      light: '#ffcccb',
-      dark: '#ba6b6c',
-      background: '#eeeeee'
-    },
-    secondary: {
-      main: "#b71c1c",
-      light: '#f05545',
-      dark: '#7f0000'
-    },
-  },
-});
-
-
-const SignIn = () => {
+  
 
   return (
-    <ThemeProvider theme={lightTheme}>
-      <Grid
-        container
-        spacing={0}
-        direction="column"
-        justify="flex-start"
-        alignItems="flex-start"
-        style={{ minHeight: '100vh' }}
-      >
-        <Grid item>
-
-          <Typography
-            variant={"h3"}
-            align="flex-start"
-          >
-
-
-              <React.Fragment>
-                Sign In page
-              </React.Fragment>
-
-          </Typography>
-
-        </Grid>
-      </Grid>
-    </ThemeProvider>
+    <Container maxWidth="xs" style={{ textAlign: "center", marginTop: "50px" }}>
+      <Typography variant="h4" gutterBottom>
+        {isSignUp ? "Sign Up" : "Sign In"}
+      </Typography>
+      {error && <Typography color="error">{error}</Typography>}
+      <TextField
+        label="Email"
+        fullWidth
+        margin="normal"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <TextField
+        label="Password"
+        type="password"
+        fullWidth
+        margin="normal"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <Button variant="contained" color="primary" fullWidth onClick={handleSubmit} style={{ marginTop: "20px" }}>
+        {isSignUp ? "Sign Up" : "Sign In"}
+      </Button>
+      <Button color="secondary" fullWidth onClick={() => setIsSignUp(!isSignUp)} style={{ marginTop: "10px" }}>
+        {isSignUp ? "Already have an account? Sign In" : "New user? Sign Up"}
+      </Button>
+    </Container>
   );
 }
-
-
-
 
 export default SignIn;
