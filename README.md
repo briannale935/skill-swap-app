@@ -1,104 +1,84 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/WKF7bdtB)
-# MSci 245 - Project Deliverable 2
+SkillSwap
 
-## Due: July 17, 2024, 6:00PM
+Project Overview
 
-## GitHub Classroom link: https://classroom.github.com/a/8f6WY7bt
+GitHub Repository: SkillSwap GitHubTrello Board: SkillSwap Trello
 
-## Summary: 
-Implement reading/writing of the data from/to MySQL database in your React/NodeJS app.
+SkillSwap is an innovative peer-to-peer learning platform that empowers users to exchange skills with others in a mutually beneficial way. Unlike traditional e-learning platforms that require expensive subscriptions or one-time payments, SkillSwap creates a collaborative and cost-free learning environment where users teach and learn from one another based on shared interests and availability. This fosters community engagement and allows for personalized, flexible learning experiences.
 
-## Development Tips:
-- Use CodeSpaces for this project.
-- In VSCode terminal on CodeSpaces start a new branch:
-```git checkout -b d2```
-- As you code, push daily changes to your GitHub repo's `d2` branch:
-```
-git add .
-git commit -m "done feature xyz"
-git push origin d2
-```
+Core Features
 
-## Initialize the Private Key in CodeSpaces
+1️⃣ User Registration, Login & Profile Management
 
-1. Open GitHub in the browser. Go to Settings > Codespaces. Click on the `Edit` icon for the key `STUDENT`. Under `Repository Access`, select your D2 repository name. Click `Save changes`.
-2. Do Steps 2-9 from Lab 9 - Part 1 section in README.md. ***Tip: Stop and Restart your Codespace if you don't see the Private key when you do `echo "${STUDENT}"`.***
-3. The database name in Line 6 in `config.js` file should be changed to your UW username. Your database has the same name as your UW username, and contains a copy of the `imdb` database.
+Users register and log in using Firebase Authentication, ensuring secure access.
 
-## Deliverable 2 Guidelines
+Profiles include key details such as name, skill(s) they can teach, skill(s) they want to learn, location, time availability, years of experience, and email.
 
-### Part 1: Augment your database
+Users can easily edit and update their profiles to reflect new interests and schedule changes.
 
-1. Open MySQL Workbench
-2. Select the database that has the same name as your UW username:
+2️⃣ Skill Matching & Request System
 
-```
-USE yourUserName;
-```
-Tip: Click on the icon highlighted in the figure below to only run the query with the cursor.
+A smart matching system connects users based on the skill they wish to learn and the skill they can teach.
 
-![image](/img/screen1.png)
+Users can browse through potential matches and send an invite to initiate a skill swap.
 
-3. List all the tables visible to you.
+Once both users accept the request, contact details are revealed, allowing them to coordinate learning sessions.
 
-```
-SHOW TABLES;
-```
+This mutual exchange eliminates financial barriers and promotes diverse learning opportunities.
 
-Click on the same icon again to run this query.
+3️⃣ Matches Tab
 
-You should see the following result:
+Pending Matches: Displays users who have requested to swap skills with you but are awaiting your response.
 
-![image](/img/screen3.png)
+Accepted Matches: Shows users with whom you’ve successfully completed a skill swap.
 
-4. Create two tables listed below. In addition to the given attributes, add Foreign Keys required to join (a) User with Review and (b) Review with Movie. 
+Users can accept or reject invites directly within the interface, ensuring an intuitive and seamless user experience.
 
-```
-Table name: User
-Attributes: userID (Primary Key), firstName, lastName, email, phone, dateOfBirth
-```
+4️⃣ Reviews & Ratings
 
-```
-Table name: Review 
-Attributes: reviewID (Primary Key), reviewTitle, reviewContent (200 characters maximum), reviewScore [values: 1-5] 
-```
+After successfully completing a skill swap, users can review and rate their learning experience.
 
-***Important: name the tables and attributes exactly as shown above with the same capitalization. This is important to pass the autograding script***
+Reviews include:
 
-### Part 2: Implement the following functionalities in your React/NodeJS app
+The matched user’s name
 
-1.	For this deliverable, you will need to extend the React code that you wrote for D1. Copy the components under `client/src/components/App` in your D1 repository into the current D2 repository. ***Important: If you had any errors in your D1 code, make sure that you correct them in D2. Do not make any changes to your D1 GitHub repository.***
+A short written message describing the experience
 
-2.	Read the list of movies from MySQL 
+A rating on a scale of 1-5
 
-i. Upon the first render, the React code should send a request to the NodeJS POST API `getMovies` in `server.js` to retrieve the list of all movie records from the `movies` table in your database. 
+This feature fosters a trust-based environment, ensuring quality exchanges and improving user credibility over time.
 
-ii. When the React code receives the list of movies, it should assign the received movies list to a stateful list `movies`. 
+5️⃣ Blog & Discussion Threads
 
-iii. Write code to populate the MUI Select element (created in D1) with the values from the stateful list. 
+Users can create blog posts by selecting a topic, adding relevant tags, and writing a detailed description.
 
-iv. In NodeJS (file `server.js`) create a POST API `getMovies` that will receive a POST request from React and retrieve all records of movies from the `movies` table in your database. For each movie, it must retrieve all fields (id, name, year, quality). Finally, the API must send the list of records as a JSON object to React.
+The blog serves as a discussion forum where users can engage in meaningful conversations.
 
-3.	Write the user-created movie review to MySQL 
+Other users can comment, ask questions, and contribute to ongoing discussions, making it a space for continuous knowledge sharing beyond direct skill swaps.
 
-i. When the user clicks the `Submit` button, the React should send all review data (movieID, userID, reviewTitle, reviewContent, reviewScore) to the POST API `addReview` in `server.js`. 
+Future improvements will focus on making the blog more descriptive to facilitate better engagement.
 
-ii. In `server.js` implement a POST API `addReview`, which receives user-created review from React, and inserts the review data into the appropriate table(s) in your database. 
+How to Run the Project
 
-### Notes:
-- You must use Express middleware to send data between React and NodeJS.
-- Make sure that the D1 validation checks and all other React UI requirements still work correctly in your code.
-- Declare `userID` as a stateful variable in your React code and set it to '1'.
-- You are not required to create the MySQL record for the user with userID='1' in User table upon each review submission. Instead, create it once directly in MySQL Workbench. 
+1️⃣ Clone the Repository
 
-4.	After you finish development, make sure that the app renders in the browser and functions according to the specifications.
+git clone https://github.com/MSci-245-react/team-project-team-20-1.git
+cd team-project-team-20-1
 
-5.	Push changes to the GitHub:
+2️⃣ Install Dependencies
 
-```
-git add .
-git commit -m "completed"
-git push origin d2
-```
+npm install
 
-6.	In your GitHub repo, create new pull request and merge `d2` branch with the `main` branch.
+3️⃣ Start the Backend
+
+npm run server
+
+4️⃣ Start the Frontend
+
+npm start
+
+Future Enhancements
+
+Mobile App Version: Develop an iOS/Android version of SkillSwap for a more accessible experience.
+
+Improved Blog System: Enhance the blog feature to allow for more detailed posts, better categorization, and increased user interaction.
