@@ -60,25 +60,30 @@ Future improvements will focus on making the blog more descriptive to facilitate
 
 How to Run the Project
 
-1️⃣ Clone the Repository
+1️⃣ Open codespaces
 
-git clone https://github.com/MSci-245-react/team-project-team-20-1.git
-cd team-project-team-20-1
+2️⃣ Install dependances 
+npm i 
+cd client 
+npm i 
+cd ..
 
-2️⃣ Install Dependencies
+3️⃣ Start the app
 
-npm install
-
-3️⃣ Start the Backend
-
-npm run server
-
-4️⃣ Start the Frontend
-
-npm start
+yarn dev
 
 Future Enhancements
 
-Mobile App Version: Develop an iOS/Android version of SkillSwap for a more accessible experience.
+Logout Page
+Matches feature 
+Review features 
 
-Improved Blog System: Enhance the blog feature to allow for more detailed posts, better categorization, and increased user interaction.
+Enhancements as specified in 'User Stories' (ex. key word search) 
+
+**Input**
+**To Sign In:**
+Email: fire20@gmail.com
+Password: password123 
+
+**Search**
+Can search for Software Developer as skill wil time availbility at 11 for search results to populate. We haven't added more users to database yet. 
