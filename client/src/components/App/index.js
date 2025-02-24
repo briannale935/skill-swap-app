@@ -3,6 +3,8 @@ import {useState} from 'react';
 import SignIn from '../SignIn';
 import Search from '../Search/Search';
 import Navbar from './navbar';
+import PostCreation from '../Blog/blog';
+import Matches from '../Matches';
 
 function MainApp() {
   return (
@@ -10,6 +12,8 @@ function MainApp() {
       <Navbar />
       <Routes>
         <Route path="/search" element={<Search />} />
+        <Route path="/PostCreation" element={<PostCreation />} />
+        <Route path="/Matches" element={<Matches />} />
       </Routes>
     </>
   );

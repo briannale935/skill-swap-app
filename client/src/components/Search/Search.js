@@ -76,6 +76,7 @@ const Search = () => {
                 <Typography variant="h6">{user.name}</Typography>
                 <Typography>Skill: {user.skill}</Typography>
                 <Typography>Availability: {user.time_availability}</Typography>
+                <Button>Send Invite</Button>
               </div>
             </Grid>
           ))

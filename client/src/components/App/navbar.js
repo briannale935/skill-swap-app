@@ -8,6 +8,12 @@ function Navbar() {
         <Button color="inherit" component={Link} to="/Search">
           Search
         </Button>
+        <Button color="inherit" component={Link} to="/Matches">
+          Matches
+        </Button>
+        <Button color="inherit" component={Link} to="/PostCreation">
+          Blog
+        </Button>
       </Toolbar>
     </AppBar>
   );
