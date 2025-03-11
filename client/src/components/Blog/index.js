@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Grid, Typography, TextField, Button, Select, MenuItem, InputLabel, FormControl, Box, Card, CardContent } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-const PostCreation = () => {
+const Blog = () => {
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
   const [selectedTag, setSelectedTag] = useState('');
@@ -170,4 +170,4 @@ const PostCreation = () => {
   );
 };
 
-export default PostCreation;
+export default Blog; 
