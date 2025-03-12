@@ -229,87 +229,6 @@ app.post('/api/register', async (req, res) => {
 	});
   });
 
-  // Send an invite
-app.post("/api/invites/send", (req, res) => {
-	const { sender_id, receiver_id } = req.body;
-  
-	if (!sender_id || !receiver_id) {
-	  return res.status(400).json({ error: "Missing sender or receiver ID" });
-	}
-  
-	const sql = "INSERT INTO invites (sender_id, receiver_id, status) VALUES (?, ?, 'pending')";
-	connection.query(sql, [sender_id, receiver_id], (err, result) => {
-	  if (err) {
-		console.error("Error sending invite:", err.message);
-		return res.status(500).json({ error: "Database error" });
-	  }
-	  res.status(201).json({ message: "Invite sent successfully!" });
-	});
-  });
-  
-  // Fetch all matches (pending & accepted)
-  app.get("/api/matches", (req, res) => {
-	const { user_id } = req.query;
-  
-	if (!user_id) {
-	  return res.status(400).json({ error: "Missing user ID" });
-	}
-  
-	const sql = `
-	  SELECT i.id, u.name AS sender_name, u.skill, u.time_availability, i.status
-	  FROM invites i
-	  JOIN users u ON i.sender_id = u.id
-	  WHERE i.receiver_id = ? AND (i.status = 'pending' OR i.status = 'accepted')
-	`;
-  
-	connection.query(sql, [user_id], (err, results) => {
-	  if (err) {
-		console.error("Error fetching matches:", err.message);
-		return res.status(500).json({ error: "Database error" });
-	  }
-  
-	  const pending = results.filter((invite) => invite.status === "pending");
-	  const accepted = results.filter((invite) => invite.status === "accepted");
-  
-	  res.json({ pending, accepted });
-	});
-  });
-  
-  // Accept an invite
-  app.post("/api/matches/accept", (req, res) => {
-	const { inviteId } = req.body;
-  
-	if (!inviteId) {
-	  return res.status(400).json({ error: "Missing invite ID" });
-	}
-  
-	const sql = "UPDATE invites SET status = 'accepted' WHERE id = ?";
-	connection.query(sql, [inviteId], (err) => {
-	  if (err) {
-		console.error("Error accepting invite:", err.message);
-		return res.status(500).json({ error: "Database error" });
-	  }
-	  res.json({ message: "Invite accepted successfully!" });
-	});
-  });
-  
-  // Reject an invite
-  app.post("/api/matches/reject", (req, res) => {
-	const { inviteId } = req.body;
-  
-	if (!inviteId) {
-	  return res.status(400).json({ error: "Missing invite ID" });
-	}
-  
-	const sql = "DELETE FROM invites WHERE id = ?";
-	connection.query(sql, [inviteId], (err) => {
-	  if (err) {
-		console.error("Error rejecting invite:", err.message);
-		return res.status(500).json({ error: "Database error" });
-	  }
-	  res.json({ message: "Invite rejected successfully!" });
-	});
-  });
 
 
   // GET all posts (most recent first)
@@ -363,7 +282,6 @@ router.get('/api/posts', (req, res) => {
     });
 });
 
-// API Routes
 
 // Get all matches (pending and sent)
 app.get('/api/matches', (req, res) => {
@@ -434,6 +352,10 @@ app.use(router);
 
 app.listen(port, () => console.log(`Listening on port ${port}`)); //for the dev version
 //app.listen(port, '172.31.31.77'); //for the deployed version, specify the IP address of the server
+
+
+/////////// MATCHES
+
 
 // Update the matches endpoints
 app.post('/api/matches/request', (req, res) => {
@@ -605,3 +527,86 @@ app.put('/api/matches/progress/:id', (req, res) => {
     });
   });
 });
+
+
+  // Send an invite
+  app.post("/api/invites/send", (req, res) => {
+    const { sender_id, receiver_id } = req.body;
+    
+    if (!sender_id || !receiver_id) {
+      return res.status(400).json({ error: "Missing sender or receiver ID" });
+    }
+    
+    const sql = "INSERT INTO invites (sender_id, receiver_id, status) VALUES (?, ?, 'pending')";
+    connection.query(sql, [sender_id, receiver_id], (err, result) => {
+      if (err) {
+      console.error("Error sending invite:", err.message);
+      return res.status(500).json({ error: "Database error" });
+      }
+      res.status(201).json({ message: "Invite sent successfully!" });
+    });
+    });
+    
+    // Fetch all matches (pending & accepted)
+    app.get("/api/matches", (req, res) => {
+    const { user_id } = req.query;
+    
+    if (!user_id) {
+      return res.status(400).json({ error: "Missing user ID" });
+    }
+    
+    const sql = `
+      SELECT i.id, u.name AS sender_name, u.skill, u.time_availability, i.status
+      FROM invites i
+      JOIN users u ON i.sender_id = u.id
+      WHERE i.receiver_id = ? AND (i.status = 'pending' OR i.status = 'accepted')
+    `;
+    
+    connection.query(sql, [user_id], (err, results) => {
+      if (err) {
+      console.error("Error fetching matches:", err.message);
+      return res.status(500).json({ error: "Database error" });
+      }
+    
+      const pending = results.filter((invite) => invite.status === "pending");
+      const accepted = results.filter((invite) => invite.status === "accepted");
+    
+      res.json({ pending, accepted });
+    });
+    });
+    
+    // Accept an invite
+    app.post("/api/matches/accept", (req, res) => {
+    const { inviteId } = req.body;
+    
+    if (!inviteId) {
+      return res.status(400).json({ error: "Missing invite ID" });
+    }
+    
+    const sql = "UPDATE invites SET status = 'accepted' WHERE id = ?";
+    connection.query(sql, [inviteId], (err) => {
+      if (err) {
+      console.error("Error accepting invite:", err.message);
+      return res.status(500).json({ error: "Database error" });
+      }
+      res.json({ message: "Invite accepted successfully!" });
+    });
+    });
+    
+    // Reject an invite
+    app.post("/api/matches/reject", (req, res) => {
+    const { inviteId } = req.body;
+    
+    if (!inviteId) {
+      return res.status(400).json({ error: "Missing invite ID" });
+    }
+    
+    const sql = "DELETE FROM invites WHERE id = ?";
+    connection.query(sql, [inviteId], (err) => {
+      if (err) {
+      console.error("Error rejecting invite:", err.message);
+      return res.status(500).json({ error: "Database error" });
+      }
+      res.json({ message: "Invite rejected successfully!" });
+    });
+    });
