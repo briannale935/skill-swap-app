@@ -6,7 +6,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import response from 'express';
-import cors from 'cors';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,124 +15,21 @@ const app = express();
 const port = process.env.PORT || 5000;
 const db = mysql.createConnection(config);
 
-// Create tables if they don't exist
-const createTables = `
-  -- Skill swap requests table
-  CREATE TABLE IF NOT EXISTS skill_swap_requests (
-    id VARCHAR(36) PRIMARY KEY,
-    sender_name VARCHAR(255) NOT NULL,
-    recipient_name VARCHAR(255) NOT NULL,
-    sender_skill VARCHAR(255) NOT NULL,
-    requested_skill VARCHAR(255) NOT NULL,
-    time_availability VARCHAR(255) NOT NULL,
-    status ENUM('pending', 'accepted', 'declined', 'withdrawn') NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-
-  -- Successful matches table
-  CREATE TABLE IF NOT EXISTS successful_matches (
-    id VARCHAR(36) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    skill VARCHAR(255) NOT NULL,
-    location VARCHAR(255) NOT NULL,
-    time_availability VARCHAR(255) NOT NULL,
-    years_of_experience INT NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    sessions_completed INT DEFAULT 0,
-    status VARCHAR(50) DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-
-  -- Users table (if not exists)
-  CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    location VARCHAR(255),
-    skills JSON,
-    seeking JSON,
-    availability VARCHAR(255),
-    email VARCHAR(255) UNIQUE NOT NULL
-  );
-`;
-
-// Insert mock data
-const insertMockData = `
-  -- Insert pending invites
-  INSERT INTO skill_swap_requests (id, sender_name, sender_skill, requested_skill, time_availability, status, created_at)
-  VALUES 
-    ('inv1', 'Alice Johnson', 'Python Programming', 'Spanish Language', 'Weekends', 'pending', '2024-03-15 10:00:00'),
-    ('inv2', 'Bob Smith', 'Guitar', 'Digital Marketing', 'Weekday Evenings', 'pending', '2024-03-14 15:30:00');
-
-  -- Insert sent requests
-  INSERT INTO skill_swap_requests (id, sender_name, recipient_name, sender_skill, requested_skill, time_availability, status, created_at)
-  VALUES 
-    ('req1', 'Current User', 'Carol White', 'JavaScript', 'Photography', 'Monday/Wednesday Evenings', 'pending', '2024-03-13 09:15:00'),
-    ('req2', 'Current User', 'David Brown', 'Yoga', 'Data Analysis', 'Tuesday/Thursday Mornings', 'pending', '2024-03-12 14:45:00');
-
-  -- Insert successful matches
-  INSERT INTO successful_matches (id, name, skill, location, time_availability, years_of_experience, email, sessions_completed, status, created_at)
-  VALUES 
-    ('match1', 'Eva Martinez', 'French Language', 'Online', 'Weekends', 5, 'eva.martinez@example.com', 3, 'active', '2024-03-10 08:00:00'),
-    ('match2', 'Frank Wilson', 'Web Design', 'Online', 'Weekday Evenings', 3, 'frank.wilson@example.com', 2, 'active', '2024-03-09 16:20:00'),
-    ('match3', 'Tom Brown', 'Chinese Language', 'New York', 'Monday/Wednesday/Friday mornings', 8, 'tom.brown@example.com', 12, 'active', NOW()),
-    ('match4', 'Maria Garcia', 'Marketing', 'Miami', 'Weekday afternoons', 6, 'maria.garcia@example.com', 8, 'active', NOW()),
-    ('match5', 'James Wilson', 'Business Strategy', 'Chicago', 'Flexible hours', 10, 'james.wilson@example.com', 16, 'active', NOW());
-
-  -- Insert mock users for search
-  INSERT INTO users (name, location, skills, seeking, availability, email)
-  VALUES 
-    ('John Doe', 'New York', '["JavaScript", "React", "Node.js"]', '["Python", "Data Analysis"]', 'Weekday evenings', 'john.doe@example.com'),
-    ('Jane Smith', 'San Francisco', '["Python", "Machine Learning", "Data Science"]', '["Web Development", "UI/UX Design"]', 'Weekends', 'jane.smith@example.com'),
-    ('Mike Johnson', 'Chicago', '["Guitar", "Piano", "Music Theory"]', '["Spanish", "French"]', 'Flexible', 'mike.johnson@example.com');
-`;
-
-// Initialize database tables and data
 db.connect((err) => {
 	if (err) {
 	  console.error('Error connecting to the database:', err.stack);
 	  return;
 	}
 	console.log('Connected to the MySQL database');
-
-	// Create tables
-	db.query(createTables, (error) => {
-	  if (error) {
-		console.error('Error creating tables:', error);
-		return;
-	  }
-	  console.log('Tables created successfully');
-
-	  // Check if data already exists before inserting
-	  db.query('SELECT COUNT(*) as count FROM skill_swap_requests', (err, results) => {
-		if (err) {
-		  console.error('Error checking existing data:', err);
-		  return;
-		}
-
-		if (results[0].count === 0) {
-		  // Insert mock data only if tables are empty
-		  db.query(insertMockData, (error) => {
-			if (error) {
-			  console.error('Error inserting mock data:', error);
-			  return;
-			}
-			console.log('Mock data inserted successfully');
-		  });
-		}
-	  });
-	});
   });
-
-// Initialize router
+  
+  // Initialize router
 const router = express.Router();
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(express.static(path.join(__dirname, "client/build")));
 
-// Middleware
-app.use(cors());
-app.use(express.json());
 
 app.post('/api/loadUserSettings', (req, res) => {
 
@@ -229,6 +125,87 @@ app.post('/api/register', async (req, res) => {
 	});
   });
 
+  // Send an invite
+app.post("/api/invites/send", (req, res) => {
+	const { sender_id, receiver_id } = req.body;
+  
+	if (!sender_id || !receiver_id) {
+	  return res.status(400).json({ error: "Missing sender or receiver ID" });
+	}
+  
+	const sql = "INSERT INTO invites (sender_id, receiver_id, status) VALUES (?, ?, 'pending')";
+	connection.query(sql, [sender_id, receiver_id], (err, result) => {
+	  if (err) {
+		console.error("Error sending invite:", err.message);
+		return res.status(500).json({ error: "Database error" });
+	  }
+	  res.status(201).json({ message: "Invite sent successfully!" });
+	});
+  });
+  
+  // Fetch all matches (pending & accepted)
+  app.get("/api/matches", (req, res) => {
+	const { user_id } = req.query;
+  
+	if (!user_id) {
+	  return res.status(400).json({ error: "Missing user ID" });
+	}
+  
+	const sql = `
+	  SELECT i.id, u.name AS sender_name, u.skill, u.time_availability, i.status
+	  FROM invites i
+	  JOIN users u ON i.sender_id = u.id
+	  WHERE i.receiver_id = ? AND (i.status = 'pending' OR i.status = 'accepted')
+	`;
+  
+	connection.query(sql, [user_id], (err, results) => {
+	  if (err) {
+		console.error("Error fetching matches:", err.message);
+		return res.status(500).json({ error: "Database error" });
+	  }
+  
+	  const pending = results.filter((invite) => invite.status === "pending");
+	  const accepted = results.filter((invite) => invite.status === "accepted");
+  
+	  res.json({ pending, accepted });
+	});
+  });
+  
+  // Accept an invite
+  app.post("/api/matches/accept", (req, res) => {
+	const { inviteId } = req.body;
+  
+	if (!inviteId) {
+	  return res.status(400).json({ error: "Missing invite ID" });
+	}
+  
+	const sql = "UPDATE invites SET status = 'accepted' WHERE id = ?";
+	connection.query(sql, [inviteId], (err) => {
+	  if (err) {
+		console.error("Error accepting invite:", err.message);
+		return res.status(500).json({ error: "Database error" });
+	  }
+	  res.json({ message: "Invite accepted successfully!" });
+	});
+  });
+  
+  // Reject an invite
+  app.post("/api/matches/reject", (req, res) => {
+	const { inviteId } = req.body;
+  
+	if (!inviteId) {
+	  return res.status(400).json({ error: "Missing invite ID" });
+	}
+  
+	const sql = "DELETE FROM invites WHERE id = ?";
+	connection.query(sql, [inviteId], (err) => {
+	  if (err) {
+		console.error("Error rejecting invite:", err.message);
+		return res.status(500).json({ error: "Database error" });
+	  }
+	  res.json({ message: "Invite rejected successfully!" });
+	});
+  });
 
 
   // GET all posts (most recent first)
@@ -282,79 +259,12 @@ router.get('/api/posts', (req, res) => {
     });
 });
 
-
-// Get all matches (pending and sent)
-app.get('/api/matches', (req, res) => {
-  const sql = `
-    SELECT * FROM skill_swap_requests 
-    WHERE status = 'pending'
-    ORDER BY created_at DESC
-  `;
-  
-  db.query(sql, (error, results) => {
-    if (error) {
-      console.error('Error fetching matches:', error);
-      return res.status(500).json({ message: 'Error fetching matches' });
-    }
-
-    const pendingInvites = results.filter(r => r.recipient_name === 'Current User');
-    const sentRequests = results.filter(r => r.sender_name === 'Current User');
-
-    res.json({
-      pending: pendingInvites,
-      sent: sentRequests
-    });
-  });
-});
-
-app.get('/api/matches/successful', (req, res) => {
-  const sql = 'SELECT * FROM successful_matches WHERE status = "active" ORDER BY created_at DESC';
-  
-  db.query(sql, (error, results) => {
-    if (error) {
-      console.error('Error fetching successful matches:', error);
-      return res.status(500).json({ message: 'Error fetching successful matches' });
-    }
-    res.json(results);
-  });
-});
-
-app.post('/api/users/search', (req, res) => {
-  const { query, skills } = req.body;
-  let sql = 'SELECT * FROM users WHERE 1=1';
-  const params = [];
-
-  if (query) {
-    sql += ' AND (name LIKE ? OR location LIKE ?)';
-    params.push(`%${query}%`, `%${query}%`);
-  }
-
-  if (skills && skills.length > 0) {
-    const skillConditions = skills.map(skill => 
-      'JSON_CONTAINS(skills, ?) OR JSON_CONTAINS(seeking, ?)'
-    ).join(' OR ');
-    sql += ` AND (${skillConditions})`;
-    skills.forEach(skill => {
-      params.push(JSON.stringify(skill), JSON.stringify(skill));
-    });
-  }
-
-  db.query(sql, params, (error, results) => {
-    if (error) {
-      console.error('Error searching users:', error);
-      return res.status(500).json({ message: 'Error searching users' });
-    }
-    res.json(results);
-  });
-});
-
 app.use(router);
 
 app.listen(port, () => console.log(`Listening on port ${port}`)); //for the dev version
 //app.listen(port, '172.31.31.77'); //for the deployed version, specify the IP address of the server
 
 
-/////////// MATCHES
 
 
 // Update the matches endpoints
@@ -610,3 +520,74 @@ app.put('/api/matches/progress/:id', (req, res) => {
       res.json({ message: "Invite rejected successfully!" });
     });
     });
+
+
+const createTables = `
+  -- Skill swap requests table
+  CREATE TABLE IF NOT EXISTS skill_swap_requests (
+    id VARCHAR(36) PRIMARY KEY,
+    sender_name VARCHAR(255) NOT NULL,
+    recipient_name VARCHAR(255) NOT NULL,
+    sender_skill VARCHAR(255) NOT NULL,
+    requested_skill VARCHAR(255) NOT NULL,
+    time_availability VARCHAR(255) NOT NULL,
+    status ENUM('pending', 'accepted', 'declined', 'withdrawn') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Successful matches table
+  CREATE TABLE IF NOT EXISTS successful_matches (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    skill VARCHAR(255) NOT NULL,
+    location VARCHAR(255) NOT NULL,
+    time_availability VARCHAR(255) NOT NULL,
+    years_of_experience INT NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    sessions_completed INT DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Users table (if not exists)
+  CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location VARCHAR(255),
+    skills JSON,
+    seeking JSON,
+    availability VARCHAR(255),
+    email VARCHAR(255) UNIQUE NOT NULL
+  );
+`;
+
+// Insert mock data
+const insertMockData = `
+  -- Insert pending invites
+  INSERT INTO skill_swap_requests (id, sender_name, sender_skill, requested_skill, time_availability, status, created_at)
+  VALUES 
+    ('inv1', 'Alice Johnson', 'Python Programming', 'Spanish Language', 'Weekends', 'pending', '2024-03-15 10:00:00'),
+    ('inv2', 'Bob Smith', 'Guitar', 'Digital Marketing', 'Weekday Evenings', 'pending', '2024-03-14 15:30:00');
+
+  -- Insert sent requests
+  INSERT INTO skill_swap_requests (id, sender_name, recipient_name, sender_skill, requested_skill, time_availability, status, created_at)
+  VALUES 
+    ('req1', 'Current User', 'Carol White', 'JavaScript', 'Photography', 'Monday/Wednesday Evenings', 'pending', '2024-03-13 09:15:00'),
+    ('req2', 'Current User', 'David Brown', 'Yoga', 'Data Analysis', 'Tuesday/Thursday Mornings', 'pending', '2024-03-12 14:45:00');
+
+  -- Insert successful matches
+  INSERT INTO successful_matches (id, name, skill, location, time_availability, years_of_experience, email, sessions_completed, status, created_at)
+  VALUES 
+    ('match1', 'Eva Martinez', 'French Language', 'Online', 'Weekends', 5, 'eva.martinez@example.com', 3, 'active', '2024-03-10 08:00:00'),
+    ('match2', 'Frank Wilson', 'Web Design', 'Online', 'Weekday Evenings', 3, 'frank.wilson@example.com', 2, 'active', '2024-03-09 16:20:00'),
+    ('match3', 'Tom Brown', 'Chinese Language', 'New York', 'Monday/Wednesday/Friday mornings', 8, 'tom.brown@example.com', 12, 'active', NOW()),
+    ('match4', 'Maria Garcia', 'Marketing', 'Miami', 'Weekday afternoons', 6, 'maria.garcia@example.com', 8, 'active', NOW()),
+    ('match5', 'James Wilson', 'Business Strategy', 'Chicago', 'Flexible hours', 10, 'james.wilson@example.com', 16, 'active', NOW());
+
+  -- Insert mock users for search
+  INSERT INTO users (name, location, skills, seeking, availability, email)
+  VALUES 
+    ('John Doe', 'New York', '["JavaScript", "React", "Node.js"]', '["Python", "Data Analysis"]', 'Weekday evenings', 'john.doe@example.com'),
+    ('Jane Smith', 'San Francisco', '["Python", "Machine Learning", "Data Science"]', '["Web Development", "UI/UX Design"]', 'Weekends', 'jane.smith@example.com'),
+    ('Mike Johnson', 'Chicago', '["Guitar", "Piano", "Music Theory"]', '["Spanish", "French"]', 'Flexible', 'mike.johnson@example.com');
+`;
