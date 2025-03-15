@@ -7,7 +7,7 @@ const Matches = () => {
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    fetch("/api/matches")
+    fetch("/api/matches?user_id=1") // Replace '1' with actual logged-in user ID
       .then((res) => res.json())
       .then((data) => {
         setPendingRequests(data.pending || []);
@@ -18,10 +18,12 @@ const Matches = () => {
 
   const handleAccept = async (id) => {
     try {
-      await fetch(`/api/matches/accept/${id}`, { method: "POST" });
-      setPendingRequests((prev) => prev.filter((request) => request.id !== id));
-      setAcceptedMatches((prev) => [...prev, pendingRequests.find((request) => request.id === id)]);
-      setNotification({ message: "Skill swap accepted! Contact details shared.", severity: "success" });
+      const response = await fetch(`/api/matches/accept/${id}`, { method: "POST" });
+      if (response.ok) {
+        setPendingRequests((prev) => prev.filter((request) => request.id !== id));
+        setAcceptedMatches((prev) => [...prev, pendingRequests.find((request) => request.id === id)]);
+        setNotification({ message: "Skill swap accepted! Contact details shared.", severity: "success" });
+      }
     } catch (err) {
       console.error("Error accepting request:", err);
     }
@@ -29,9 +31,11 @@ const Matches = () => {
 
   const handleReject = async (id) => {
     try {
-      await fetch(`/api/matches/reject/${id}`, { method: "POST" });
-      setPendingRequests((prev) => prev.filter((request) => request.id !== id));
-      setNotification({ message: "Skill swap request rejected.", severity: "info" });
+      const response = await fetch(`/api/matches/reject/${id}`, { method: "POST" });
+      if (response.ok) {
+        setPendingRequests((prev) => prev.filter((request) => request.id !== id));
+        setNotification({ message: "Skill swap request rejected.", severity: "info" });
+      }
     } catch (err) {
       console.error("Error rejecting request:", err);
     }
@@ -39,9 +43,11 @@ const Matches = () => {
 
   const handleWithdraw = async (id) => {
     try {
-      await fetch(`/api/matches/withdraw/${id}`, { method: "POST" });
-      setPendingRequests((prev) => prev.filter((request) => request.id !== id));
-      setNotification({ message: "Skill swap request withdrawn.", severity: "warning" });
+      const response = await fetch(`/api/matches/withdraw/${id}`, { method: "POST" });
+      if (response.ok) {
+        setPendingRequests((prev) => prev.filter((request) => request.id !== id));
+        setNotification({ message: "Skill swap request withdrawn.", severity: "warning" });
+      }
     } catch (err) {
       console.error("Error withdrawing request:", err);
     }
@@ -58,7 +64,6 @@ const Matches = () => {
                 <CardContent>
                   <Typography variant="h6">{request.sender_name}</Typography>
                   <Typography>Skill Offered: {request.sender_skill}</Typography>
-                  <Typography>Requested Skill: {request.requested_skill}</Typography>
                   <Typography>Time Availability: {request.time_availability}</Typography>
                   <Button variant="contained" color="primary" onClick={() => handleAccept(request.id)}>
                     Accept
@@ -85,12 +90,10 @@ const Matches = () => {
             <Grid item xs={12} md={6} key={match.id}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6">{match.name}</Typography>
-                  <Typography>Skill: {match.skill}</Typography>
-                  <Typography>Location: {match.location}</Typography>
-                  <Typography>Time Availability: {match.time_availability}</Typography>
+                  <Typography variant="h6">{match.sender_name}</Typography>
+                  <Typography>Skill: {match.sender_skill}</Typography>
                   <Typography>Email: {match.email}</Typography>
-                  <Typography>Sessions Completed: {match.sessions_completed}</Typography>
+                  <Typography>Time Availability: {match.time_availability}</Typography>
                 </CardContent>
               </Card>
             </Grid>
