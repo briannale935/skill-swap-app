@@ -25,9 +25,7 @@ db.connect((err) => {
 const router = express.Router();
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-
 app.use(express.static(path.join(__dirname, "client/build")));
-
 
 app.post('/api/loadUserSettings', (req, res) => {
 
@@ -87,7 +85,6 @@ app.post("/api/users/search", (req, res) => {
   });
   
  
-
 // Register User After Firebase Signup
 app.post('/api/register', async (req, res) => {
 	const { firebase_uid, email } = req.body;
@@ -123,8 +120,32 @@ app.post('/api/register', async (req, res) => {
 	});
   });
 
+// Get user ID based on Firebase UID
+app.get('/api/getUserId', (req, res) => {
+  const { firebase_uid } = req.query;
+  if (!firebase_uid) {
+      return res.status(400).json({ error: "Missing Firebase UID" });
+  }
 
-  // GET all posts (most recent first)
+  const sql = "SELECT id FROM users WHERE firebase_uid = ?";
+  db.query(sql, [firebase_uid], (error, results) => {
+      if (error) {
+          console.error("Error fetching user ID:", error);
+          return res.status(500).json({ error: "Database error" });
+      }
+
+      if (results.length > 0) {
+          res.json({ user_id: results[0].id });
+      } else {
+          res.status(404).json({ error: "User not found" });
+      }
+  });
+});
+
+
+  
+// POSTS
+// GET all posts (most recent first)
 router.get('/api/posts', (req, res) => {
 	const sql = 'SELECT * FROM posts ORDER BY created_at DESC';
 	db.query(sql, (err, results) => {
@@ -175,15 +196,8 @@ router.get('/api/posts', (req, res) => {
     });
 });
 
-app.use(router);
-
-app.listen(port, () => console.log(`Listening on port ${port}`)); //for the dev version
-//app.listen(port, '172.31.31.77'); //for the deployed version, specify the IP address of the server
-
-
-
 // MATCHES 
-// ✅ API - Fetch Pending & Accepted Matches
+// Fetch Pending & Accepted Matches
 router.get("/api/matches", (req, res) => {
   const { user_id } = req.query;
 
@@ -220,7 +234,7 @@ router.get("/api/matches", (req, res) => {
   });
 });
 
-// ✅ API - Send a Match Request
+// Send a Match Request
 router.post("/api/matches/request", (req, res) => {
   const { sender_name, recipient_name, sender_skill, requested_skill, time_availability } = req.body;
 
@@ -239,7 +253,7 @@ router.post("/api/matches/request", (req, res) => {
   });
 });
 
-// ✅ API - Accept a Match Request
+// Accept a Match Request
 router.post("/api/matches/accept/:id", (req, res) => {
   const { id } = req.params;
 
@@ -289,7 +303,7 @@ router.post("/api/matches/accept/:id", (req, res) => {
   });
 });
 
-// ✅ API - Reject a Match Request
+// Reject a Match Request
 router.post("/api/matches/reject/:id", (req, res) => {
   const { id } = req.params;
 
@@ -303,7 +317,7 @@ router.post("/api/matches/reject/:id", (req, res) => {
   });
 });
 
-// ✅ API - Withdraw a Match Request
+// Withdraw a Match Request
 router.post("/api/matches/withdraw/:id", (req, res) => {
   const { id } = req.params;
 
@@ -317,7 +331,7 @@ router.post("/api/matches/withdraw/:id", (req, res) => {
   });
 });
 
-// ✅ API - Update Match Progress
+// Update Match Progress
 router.put("/api/matches/progress/:id", (req, res) => {
   const { id } = req.params;
   const { sessions_completed } = req.body;
@@ -334,6 +348,85 @@ router.put("/api/matches/progress/:id", (req, res) => {
           return res.status(500).json({ message: "Error updating progress" });
       }
       res.json({ message: "Progress updated successfully!" });
+  });
+});
+
+// Send an Invite
+app.post("/api/invites/send", (req, res) => {
+  const { sender_id, receiver_id } = req.body;
+
+  if (!sender_id || !receiver_id) {
+      return res.status(400).json({ error: "Missing sender or receiver ID" });
+  }
+
+  // Ensure both users exist before inserting invite
+  const checkUsersSql = "SELECT id FROM users WHERE id IN (?, ?)";
+  db.query(checkUsersSql, [sender_id, receiver_id], (err, results) => {
+      if (err) {
+          console.error("Database error:", err.message);
+          return res.status(500).json({ error: "Database error" });
+      }
+      if (results.length !== 2) {
+          return res.status(400).json({ error: "Sender or Receiver does not exist" });
+      }
+
+      const sql = "INSERT INTO invites (sender_id, receiver_id, status) VALUES (?, ?, 'pending')";
+      db.query(sql, [sender_id, receiver_id], (err, result) => {
+          if (err) {
+              console.error("Error sending invite:", err.message);
+              return res.status(500).json({ error: "Database error" });
+          }
+          res.status(201).json({ message: "Invite sent successfully!", inviteId: result.insertId });
+      });
+  });
+});
+
+
+// Fetch all pending invites for a user
+app.get("/api/invites/pending/:userId", (req, res) => {
+  const { userId } = req.params;
+
+  const sql = `
+      SELECT i.id, u.name AS sender_name, u.skill AS sender_skill, i.status, i.time_availability 
+      FROM invites i
+      JOIN users u ON i.sender_id = u.id
+      WHERE i.receiver_id = ? AND i.status = 'pending'
+  `;
+
+  db.query(sql, [userId], (err, results) => {
+      if (err) {
+          console.error("Error fetching pending invites:", err.message);
+          return res.status(500).json({ error: "Database error" });
+      }
+      res.json(results);
+  });
+});
+
+// Accept an Invite
+app.post("/api/invites/accept/:inviteId", (req, res) => {
+  const { inviteId } = req.params;
+
+  const sql = "UPDATE invites SET status = 'accepted' WHERE id = ? AND status = 'pending'";
+  db.query(sql, [inviteId], (err, result) => {
+      if (err) {
+          console.error("Error accepting invite:", err.message);
+          return res.status(500).json({ error: "Database error" });
+      }
+      res.json({ message: "Invite accepted successfully!" });
+  });
+});
+
+// Reject an Invite
+app.post("/api/invites/reject/:inviteId", (req, res) => {
+  const { inviteId } = req.params;
+
+  const sql = "UPDATE invites SET status = 'rejected' WHERE id = ? AND status = 'pending'";
+  db.query(sql, [inviteId], (err, result) => {
+      if (err) {
+          console.error("Error rejecting invite:", err.message);
+          return res.status(500).json({ error: "Database error" });
+      }
+      res.json({ message: "Invite rejected successfully!" });
   });
 });
 
