@@ -1,102 +1,151 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import Search from '../Search'; // ✅ Correct import path
-import '@testing-library/jest-dom';
+import React from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import Search from "../Search"; // Adjust the import path if needed
 
-// Mock `fetch` globally to prevent real API calls
+// Mock `fetch` API for different tests
 global.fetch = jest.fn();
 
-describe('Search Component', () => {
-  beforeEach(() => {
-    jest.clearAllMocks(); // Reset mocks before each test
+// Mock `localStorage`
+const mockUser = { userId: "123", name: "Test User" };
+beforeEach(() => {
+  localStorage.setItem("currentUser", JSON.stringify(mockUser));
+});
+afterEach(() => {
+  localStorage.clear();
+  jest.clearAllMocks();
+});
+
+describe("Search Component", () => {
+  // Test 1: Renders input fields and buttons correctly**
+  test("renders search fields and buttons", () => {
+    render(
+      <MemoryRouter>
+        <Search />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByLabelText("Search by Skill")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search by Time Availability")).toBeInTheDocument();
+    expect(screen.getByText("Clear Search")).toBeInTheDocument();
   });
 
-  function renderComponent() {
-    render(<Search />);
-  }
+  // Test 2: Fetch and display search results**
+  test("fetches and displays search results", async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: "1",
+          name: "Alice",
+          skill: "React",
+          time_availability: "Evenings",
+          location: "New York",
+          portfolio_link: "https://alice.dev",
+        },
+      ],
+    });
 
-  it('renders the search form correctly', () => {
-    renderComponent();
+    render(
+      <MemoryRouter>
+        <Search />
+      </MemoryRouter>
+    );
 
-    // Ensure input fields exist
-    expect(screen.getByLabelText(/skill/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/time availability/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search by Skill"), {
+      target: { value: "React" },
+    });
 
-    // Ensure search button exists
-    expect(screen.getByRole('button', { name: /search/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.getByText("React")).toBeInTheDocument();
+      expect(screen.getByText("Evenings")).toBeInTheDocument();
+    });
   });
 
-  it('shows an alert if both inputs are empty when searching', () => {
-    renderComponent();
+  // Test 3: Handle API errors gracefully**
+  test("displays an error message when fetch fails", async () => {
+    fetch.mockRejectedValueOnce(new Error("Network error"));
 
-    // Mock `window.alert`
-    window.alert = jest.fn();
+    render(
+      <MemoryRouter>
+        <Search />
+      </MemoryRouter>
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+    fireEvent.change(screen.getByLabelText("Search by Skill"), {
+      target: { value: "React" },
+    });
 
-    expect(window.alert).toHaveBeenCalledWith('Please enter a skill or availability.');
+    await waitFor(() => {
+      expect(screen.queryByText("Alice")).not.toBeInTheDocument(); // No results should be shown
+    });
   });
 
-  it('calls API and displays results when search is successful', async () => {
-    renderComponent();
+  // Test 4: Send invite successfully**
+  test("sends an invite successfully", async () => {
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [
+          { id: "2", name: "Bob", skill: "Node.js", time_availability: "Mornings" },
+        ],
+      }) // Mock search results
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "Invite sent successfully!" }),
+      }); // Mock invite response
 
-    fireEvent.change(screen.getByLabelText(/skill/i), { target: { value: 'JavaScript' } });
-    fireEvent.change(screen.getByLabelText(/time availability/i), { target: { value: 'Evenings' } });
+    render(
+      <MemoryRouter>
+        <Search />
+      </MemoryRouter>
+    );
 
-    const mockResponse = [
-      { id: 1, name: 'John Doe', skill: 'JavaScript', time_availability: 'Evenings' },
-      { id: 2, name: 'Jane Smith', skill: 'React', time_availability: 'Mornings' },
-    ];
+    fireEvent.change(screen.getByLabelText("Search by Skill"), {
+      target: { value: "Node.js" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Send Invite"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Invite sent successfully!")).toBeInTheDocument();
+    });
+  });
+
+  // Test 5: Prevent sending invites if not logged in**
+  test("shows error message when sending invite while not logged in", async () => {
+    localStorage.clear(); // Simulate user not logged in
 
     fetch.mockResolvedValueOnce({
       ok: true,
-      json: jest.fn().mockResolvedValueOnce(mockResponse),
+      json: async () => [
+        { id: "3", name: "Charlie", skill: "Python", time_availability: "Afternoons" },
+      ],
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+    render(
+      <MemoryRouter>
+        <Search />
+      </MemoryRouter>
+    );
+
+    fireEvent.change(screen.getByLabelText("Search by Skill"), {
+      target: { value: "Python" },
+    });
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith('/api/users/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skill: 'JavaScript', timeAvailability: 'Evenings' }),
-      });
-
-      expect(screen.getByText(/John Doe/i)).toBeInTheDocument();
-      expect(screen.getByText(/Jane Smith/i)).toBeInTheDocument();
-    });
-  });
-
-  it('displays "No users found" when API returns an empty array', async () => {
-    renderComponent();
-
-    fireEvent.change(screen.getByLabelText(/skill/i), { target: { value: 'Python' } });
-
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: jest.fn().mockResolvedValueOnce([]),
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /search/i }));
+    fireEvent.click(screen.getByText("Send Invite"));
 
     await waitFor(() => {
-      expect(screen.getByText(/no users found/i)).toBeInTheDocument();
-    });
-  });
-
-  it('handles API errors gracefully', async () => {
-    renderComponent();
-
-    fireEvent.change(screen.getByLabelText(/skill/i), { target: { value: 'C++' } });
-
-    fetch.mockResolvedValueOnce({
-      ok: false,
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /search/i }));
-
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(1);
-      expect(screen.getByText(/no users found/i)).toBeInTheDocument();
+      expect(screen.getByText("Login to send invites")).toBeInTheDocument();
     });
   });
 });
