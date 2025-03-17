@@ -314,16 +314,18 @@ router.get("/api/matches", (req, res) => {
 
   // Get pending requests where this user is the recipient
   const pendingSql = `
-      SELECT id, sender_name, sender_skill, requested_skill, time_availability, status 
-      FROM skill_swap_requests 
-      WHERE recipient_id = ? AND status = 'pending';
+      SELECT sr.id, sr.sender_name, sr.sender_skill, sr.requested_skill, sr.time_availability, sr.status, u.email as sender_email
+      FROM skill_swap_requests sr
+      JOIN users u ON sr.sender_id = u.id
+      WHERE sr.recipient_id = ? AND sr.status = 'pending';
   `;
   
-  // Get accepted matches
+  // Get accepted matches with email information
   const acceptedSql = `
-      SELECT id, name, skill, location, time_availability, sessions_completed 
-      FROM successful_matches 
-      WHERE id IN (
+      SELECT sm.id, sm.name, sm.skill, sm.location, sm.time_availability, u.email
+      FROM successful_matches sm
+      JOIN users u ON u.name = sm.name
+      WHERE sm.id IN (
           SELECT id FROM skill_swap_requests 
           WHERE (sender_id = ? OR recipient_id = ?) AND status = 'accepted'
       );
@@ -365,7 +367,7 @@ router.post("/api/matches/request", (req, res) => {
   });
 });
 
-// Accept a Match Request - Updated to prevent duplicates
+// Accept a Match Request - Updated to include email
 router.post("/api/matches/accept/:id", (req, res) => {
   const { id } = req.params;
 
@@ -375,7 +377,14 @@ router.post("/api/matches/accept/:id", (req, res) => {
           return res.status(500).json({ message: "Error accepting request" });
       }
 
-      const fetchSql = "SELECT * FROM skill_swap_requests WHERE id = ? AND status = 'pending'";
+      // Get the request details with sender email
+      const fetchSql = `
+          SELECT sr.*, u.email as sender_email 
+          FROM skill_swap_requests sr
+          JOIN users u ON sr.sender_id = u.id
+          WHERE sr.id = ? AND sr.status = 'pending'
+      `;
+      
       db.query(fetchSql, [id], (error, requests) => {
           if (error || requests.length === 0) {
               db.rollback();
@@ -412,7 +421,8 @@ router.post("/api/matches/accept/:id", (req, res) => {
                           }
                           res.json({ 
                               message: "Skill swap request accepted successfully!",
-                              alreadyMatched: true
+                              alreadyMatched: true,
+                              email: request.sender_email
                           });
                       });
                   });
@@ -450,7 +460,10 @@ router.post("/api/matches/accept/:id", (req, res) => {
                               db.rollback();
                               return res.status(500).json({ message: "Error finalizing match" });
                           }
-                          res.json({ message: "Skill swap request accepted successfully!" });
+                          res.json({ 
+                              message: "Skill swap request accepted successfully!",
+                              email: request.sender_email
+                          });
                       });
                   });
               });

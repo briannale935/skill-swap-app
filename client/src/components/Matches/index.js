@@ -60,7 +60,8 @@ const Matches = () => {
             name: acceptedRequest.sender_name,
             skill: acceptedRequest.sender_skill,
             location: "Online", // Default location
-            time_availability: acceptedRequest.time_availability
+            time_availability: acceptedRequest.time_availability,
+            email: data.email || "aithy@example.com" // Use the email from the response or a default
           };
           
           setAcceptedMatches(prev => [...prev, newMatch]);
@@ -135,6 +136,7 @@ const Matches = () => {
               <TableCell><b>Skill</b></TableCell>
               <TableCell><b>Location</b></TableCell>
               <TableCell><b>Time Availability</b></TableCell>
+              <TableCell><b>Email</b></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -145,11 +147,12 @@ const Matches = () => {
                   <TableCell>{match.skill}</TableCell>
                   <TableCell>{match.location || "Online"}</TableCell>
                   <TableCell>{match.time_availability}</TableCell>
+                  <TableCell>{match.email || "Email not available"}</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} style={{ textAlign: "center" }}>No accepted matches</TableCell>
+                <TableCell colSpan={5} style={{ textAlign: "center" }}>No accepted matches</TableCell>
               </TableRow>
             )}
           </TableBody>
