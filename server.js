@@ -3,198 +3,305 @@ import config from './config.js';
 import fetch from 'node-fetch';
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url'
+import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
+import response from 'express';
+
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 
 const app = express();
 const port = process.env.PORT || 5000;
 const db = mysql.createConnection(config);
 
+
 db.connect((err) => {
-	if (err) {
-	  console.error('Error connecting to the database:', err.stack);
-	  return;
-	}
-	console.log('Connected to the MySQL database');
-  });
-  
+   if (err) {
+     console.error('Error connecting to the database:', err.stack);
+     return;
+   }
+   console.log('Connected to the MySQL database');
+ });
   // Initialize router
 const router = express.Router();
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+
 app.use(express.static(path.join(__dirname, "client/build")));
+
 
 app.post('/api/loadUserSettings', (req, res) => {
 
-	let connection = mysql.createConnection(config);
-	let userID = req.body.userID;
 
-	let sql = `SELECT mode FROM user WHERE userID = ?`;
-	console.log(sql);
-	let data = [userID];
-	console.log(data);
+   let connection = mysql.createConnection(config);
+   let userID = req.body.userID;
 
-	connection.query(sql, data, (error, results, fields) => {
-		if (error) {
-			return console.error(error.message);
-		}
 
-		let string = JSON.stringify(results);
-		//let obj = JSON.parse(string);
-		res.send({ express: string });
-	});
-	connection.end();
+   let sql = `SELECT mode FROM user WHERE userID = ?`;
+   console.log(sql);
+   let data = [userID];
+   console.log(data);
+
+
+   connection.query(sql, data, (error, results, fields) => {
+       if (error) {
+           return console.error(error.message);
+       }
+
+
+       let string = JSON.stringify(results);
+       //let obj = JSON.parse(string);
+       res.send({ express: string });
+   });
+   connection.end();
 });
 
-app.post("/api/users/search", (req, res) => {
-	let connection = mysql.createConnection(config);
-  
-	const { skill, timeAvailability } = req.body;
-  
-	// Build dynamic SQL query based on user input
-	let sql = "SELECT * FROM users WHERE 1=1";
-	const values = [];
-  
-	if (skill) {
-	  sql += " AND skill LIKE ?";
-	  values.push(`%${skill}%`);
-	}
-  
-	if (timeAvailability) {
-	  sql += " AND time_availability LIKE ?";
-	  values.push(`%${timeAvailability}%`);
-	}
-  
-	connection.query(sql, values, (error, results) => {
-	  if (error) {
-		console.error("Error executing query:", error.message);
-		return res.status(500).json({ error: "Database query error" });
-	  }
-  
-	  // Convert results to JSON and send response
-	  let string = JSON.stringify(results);
-	  let obj = JSON.parse(string);
-	  console.log(obj); // Optionally log the results
-	  res.send(obj); // Send the results to the client
-	});
-  
-	connection.end();
-  });
-  
- 
+
 // Register User After Firebase Signup
 app.post('/api/register', async (req, res) => {
-	const { firebase_uid, email } = req.body;
-  
-	// Validate Required Fields
-	if (!firebase_uid || !email) {
-	  return res.status(400).json({ error: "Missing required fields (email, firebase_uid)" });
-	}
-  
-	// Create MySQL Connection (as required)
-	const connection = mysql.createConnection(config);
-  
-	connection.connect((err) => {
-	  if (err) {
-		console.error("MySQL Connection Error:", err.message);
-		return res.status(500).json({ error: "Failed to connect to database" });
-	  }
-  
-	  // Insert with NULL for optional fields
-	  const sql = `
-		INSERT INTO users (firebase_uid, email, name, skill, location, time_availability, years_of_experience, password)
-		VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL)
-	  `;
-  
-	  connection.query(sql, [firebase_uid, email], (error, result) => {
-		connection.end(); // Close connection after query execution
-		if (error) {
-		  console.error("Error inserting user:", error.message);
-		  return res.status(500).json({ error: "Database insertion failed" });
-		}
-		res.status(201).json({ message: "User registered successfully!", userId: result.insertId });
-	  });
-	});
-  });
+   const { firebase_uid, email } = req.body;
+    // Validate Required Fields
+   if (!firebase_uid || !email) {
+     return res.status(400).json({ error: "Missing required fields (email, firebase_uid)" });
+   }
+    // Create MySQL Connection (as required)
+   const connection = mysql.createConnection(config);
+    connection.connect((err) => {
+     if (err) {
+       console.error("MySQL Connection Error:", err.message);
+       return res.status(500).json({ error: "Failed to connect to database" });
+     }
+      // Insert with NULL for optional fields
+     const sql = `
+       INSERT INTO users (firebase_uid, email, name, skill, location, time_availability, years_of_experience, password)
+       VALUES (?, ?, NULL, NULL, NULL, NULL, NULL, NULL)
+     `;
+      connection.query(sql, [firebase_uid, email], (error, result) => {
+       connection.end(); // Close connection after query execution
+       if (error) {
+         console.error("Error inserting user:", error.message);
+         return res.status(500).json({ error: "Database insertion failed" });
+       }
+       res.status(201).json({ message: "User registered successfully!", userId: result.insertId });
+     });
+   });
+ });
 
-// Get user ID based on Firebase UID
-app.get('/api/getUserId', (req, res) => {
-  const { firebase_uid } = req.query;
-  if (!firebase_uid) {
-      return res.status(400).json({ error: "Missing Firebase UID" });
+// Get User ID by Email
+app.get('/api/user/id', async (req, res) => {
+  const { email } = req.query;
+  
+  // Validate Required Fields
+  if (!email) {
+    return res.status(400).json({ error: "Missing required field: email" });
+  }
+  
+  // Create MySQL Connection
+  const connection = mysql.createConnection(config);
+  
+  connection.connect((err) => {
+    if (err) {
+      console.error("MySQL Connection Error:", err.message);
+      return res.status(500).json({ error: "Failed to connect to database" });
+    }
+    
+    // Query to get user ID by email
+    const sql = `SELECT id FROM users WHERE email = ?`;
+    
+    connection.query(sql, [email], (error, results) => {
+      connection.end(); // Close connection after query execution
+      
+      if (error) {
+        console.error("Error querying user:", error.message);
+        return res.status(500).json({ error: "Database query failed" });
+      }
+      
+      if (results.length === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.status(200).json({ userId: results[0].id });
+    });
+  });
+});
+
+
+
+ // GET all posts (most recent first)
+router.get('/api/posts', (req, res) => {
+   const sql = 'SELECT * FROM posts ORDER BY created_at DESC';
+   db.query(sql, (err, results) => {
+     if (err) return res.status(500).json({ error: 'Error fetching posts' });
+     res.json(results);
+   });
+ });
+  app.post('/api/posts', (req, res) => {
+   let connection = mysql.createConnection(config);
+   const { user_id, title, content, tag, name } = req.body;
+  
+   let sql = 'INSERT INTO posts (user_id, title, content, tag, author) VALUES (?, ?, ?, ?, ?)';
+   let data = [user_id, title, content, tag, name];
+
+
+   connection.query(sql, data, (error) => {
+       if (error) {
+           console.error('Error adding post:', error);
+           res.status(500).send('Error adding post');
+       } else {
+           res.status(200).send('Post added successfully');
+       }
+       connection.end();  // Ensure connection closes properly
+   });
+});
+
+
+router.get('/api/posts', (req, res) => {
+   const sql = 'SELECT id, user_id, title, content, tag, name, created_at FROM posts ORDER BY created_at DESC';
+   db.query(sql, (err, results) => {
+       if (err) return res.status(500).json({ error: 'Error fetching posts' });
+       res.json(results);
+   });
+});
+  app.post('/api/loadUserSettings', (req, res) => {
+   const userID = req.body.userID; // Get userID from request body
+
+
+   const sql = `SELECT mode FROM user WHERE userID = ?`;
+   const data = [userID];
+
+
+   db.query(sql, data, (error, results) => {
+       if (error) {
+           console.error('Error fetching user settings:', error.message);
+           return res.status(500).json({ error: 'Error fetching user settings' });
+       }
+
+
+       res.json(results);
+   });
+});
+
+
+///
+// Update user profile
+app.post("/api/users/update", (req, res) => {
+  const { firebase_uid, name, skill, location, time_availability, years_of_experience, email, profile_picture, portfolio_link } = req.body;
+   if (!firebase_uid) {
+    return res.status(400).json({ error: "User not logged in" });
+  }
+   let connection = mysql.createConnection(config);
+   const sql = `
+    UPDATE users
+    SET name = ?, skill = ?, location = ?, time_availability = ?, years_of_experience = ?, email = ?, profile_picture = ?, portfolio_link = ?
+    WHERE firebase_uid = ?
+  `;
+   const values = [name, skill, location, time_availability, years_of_experience, email, profile_picture, portfolio_link, firebase_uid];
+   connection.query(sql, values, (error, results) => {
+    if (error) {
+      console.error("Database query error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+     if (results.affectedRows === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+     res.json({ message: "Profile updated successfully!" });
+  });
+   connection.end();
+});
+
+
+// Get user profile
+app.get("/api/users/profile", (req, res) => {
+const { firebase_uid } = req.query;
+
+
+if (!firebase_uid) {
+  return res.status(400).json({ error: "Firebase UID is required" });
+}
+
+
+let connection = mysql.createConnection(config);
+
+
+const sql = `
+  SELECT name, skill, location, time_availability, years_of_experience, profile_picture, portfolio_link
+  FROM users
+  WHERE firebase_uid = ?
+`;
+
+
+connection.query(sql, [firebase_uid], (error, results) => {
+  if (error) {
+    console.error("Error executing query:", error.message);
+    return res.status(500).json({ error: "Database query error" });
   }
 
-  const sql = "SELECT id FROM users WHERE firebase_uid = ?";
-  db.query(sql, [firebase_uid], (error, results) => {
-      if (error) {
-          console.error("Error fetching user ID:", error);
-          return res.status(500).json({ error: "Database error" });
-      }
 
-      if (results.length > 0) {
-          res.json({ user_id: results[0].id });
-      } else {
-          res.status(404).json({ error: "User not found" });
-      }
+  if (results.length === 0) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+
+  res.json(results[0]);
+});
+
+
+connection.end();
+});
+
+
+// search 
+app.get("/api/users/search", (req, res) => {
+  const { skill, timeAvailability } = req.query;
+
+  if (!skill && !timeAvailability) {
+    return res.status(400).json({ error: "At least one search query (skill or timeAvailability) is required" });
+  }
+
+  let connection = mysql.createConnection(config);
+  let sql = `
+    SELECT id, name, skill, location, time_availability, profile_picture, portfolio_link
+    FROM users
+    WHERE 1=1
+  `;
+  const values = [];
+
+  if (skill) {
+    sql += " AND skill LIKE ?";
+    values.push(`%${skill}%`);
+  }
+
+  if (timeAvailability) {
+    const times = timeAvailability.split(",").map((t) => t.trim());
+    sql += " AND time_availability LIKE ?";
+    values.push(`%${times.join(",")}%`);
+  }
+
+  connection.query(sql, values, (error, results) => {
+    if (error) {
+      console.error("Database query error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: "No users found" });
+    }
+
+    res.json(results); // Return the list of matching users
   });
+
+  connection.end();
 });
 
 
-  
-// POSTS
-// GET all posts (most recent first)
-router.get('/api/posts', (req, res) => {
-	const sql = 'SELECT * FROM posts ORDER BY created_at DESC';
-	db.query(sql, (err, results) => {
-	  if (err) return res.status(500).json({ error: 'Error fetching posts' });
-	  res.json(results);
-	});
-  });
-  
-  app.post('/api/posts', (req, res) => {
-    let connection = mysql.createConnection(config);
-    const { user_id, title, content, tag, name } = req.body;
-    
-    let sql = 'INSERT INTO posts (user_id, title, content, tag, author) VALUES (?, ?, ?, ?, ?)';
-    let data = [user_id, title, content, tag, name];
 
-    connection.query(sql, data, (error) => {
-        if (error) {
-            console.error('Error adding post:', error);
-            res.status(500).send('Error adding post');
-        } else {
-            res.status(200).send('Post added successfully');
-        }
-        connection.end();  // Ensure connection closes properly
-    });
-});
 
-router.get('/api/posts', (req, res) => {
-    const sql = 'SELECT id, user_id, title, content, tag, name, created_at FROM posts ORDER BY created_at DESC';
-    db.query(sql, (err, results) => {
-        if (err) return res.status(500).json({ error: 'Error fetching posts' });
-        res.json(results);
-    });
-});
-  
-  app.post('/api/loadUserSettings', (req, res) => {
-    const userID = req.body.userID; // Get userID from request body
 
-    const sql = `SELECT mode FROM user WHERE userID = ?`;
-    const data = [userID];
-
-    db.query(sql, data, (error, results) => {
-        if (error) {
-            console.error('Error fetching user settings:', error.message);
-            return res.status(500).json({ error: 'Error fetching user settings' });
-        }
-
-        res.json(results);
-    });
-});
 
 // MATCHES 
 // Fetch Pending & Accepted Matches
@@ -205,16 +312,21 @@ router.get("/api/matches", (req, res) => {
       return res.status(400).json({ error: "Missing user ID" });
   }
 
+  // Get pending requests where this user is the recipient
   const pendingSql = `
       SELECT id, sender_name, sender_skill, requested_skill, time_availability, status 
       FROM skill_swap_requests 
-      WHERE recipient_name = ? AND status = 'pending';
+      WHERE recipient_id = ? AND status = 'pending';
   `;
   
+  // Get accepted matches
   const acceptedSql = `
       SELECT id, name, skill, location, time_availability, sessions_completed 
       FROM successful_matches 
-      WHERE name = ?;
+      WHERE id IN (
+          SELECT id FROM skill_swap_requests 
+          WHERE (sender_id = ? OR recipient_id = ?) AND status = 'accepted'
+      );
   `;
 
   db.query(pendingSql, [user_id], (err, pendingResults) => {
@@ -223,7 +335,7 @@ router.get("/api/matches", (req, res) => {
           return res.status(500).json({ error: "Database error" });
       }
 
-      db.query(acceptedSql, [user_id], (err, acceptedResults) => {
+      db.query(acceptedSql, [user_id, user_id], (err, acceptedResults) => {
           if (err) {
               console.error("Error fetching accepted matches:", err.message);
               return res.status(500).json({ error: "Database error" });
@@ -253,7 +365,7 @@ router.post("/api/matches/request", (req, res) => {
   });
 });
 
-// Accept a Match Request
+// Accept a Match Request - Updated to prevent duplicates
 router.post("/api/matches/accept/:id", (req, res) => {
   const { id } = req.params;
 
@@ -271,31 +383,75 @@ router.post("/api/matches/accept/:id", (req, res) => {
           }
 
           const request = requests[0];
-          const createMatchSql = `
-              INSERT INTO successful_matches 
-              (id, name, skill, location, time_availability, years_of_experience, email, status)
-              VALUES (UUID(), ?, ?, 'Online', ?, 0, ?, 'active')
+          
+          // Check if a match already exists with these users
+          const checkDuplicateSql = `
+              SELECT id FROM successful_matches 
+              WHERE name = ? AND skill = ?
           `;
-
-          db.query(createMatchSql, [request.sender_name, request.sender_skill, request.time_availability, `${request.sender_name.toLowerCase().replace(' ', '.')}@example.com`], (error) => {
+          
+          db.query(checkDuplicateSql, [request.sender_name, request.sender_skill], (error, existingMatches) => {
               if (error) {
                   db.rollback();
-                  return res.status(500).json({ message: "Error creating match" });
+                  return res.status(500).json({ message: "Error checking for existing matches" });
               }
+              
+              // If a match already exists, just update the request status
+              if (existingMatches.length > 0) {
+                  const updateSql = "UPDATE skill_swap_requests SET status = 'accepted' WHERE id = ?";
+                  db.query(updateSql, [id], (error) => {
+                      if (error) {
+                          db.rollback();
+                          return res.status(500).json({ message: "Error updating request status" });
+                      }
+                      
+                      db.commit(err => {
+                          if (err) {
+                              db.rollback();
+                              return res.status(500).json({ message: "Error finalizing match" });
+                          }
+                          res.json({ 
+                              message: "Skill swap request accepted successfully!",
+                              alreadyMatched: true
+                          });
+                      });
+                  });
+                  return;
+              }
+              
+              // Create a match entry only if it doesn't exist
+              const createMatchSql = `
+                  INSERT INTO successful_matches 
+                  (id, name, skill, location, time_availability, status)
+                  VALUES (?, ?, ?, 'Online', ?, 'active')
+              `;
 
-              const updateSql = "UPDATE skill_swap_requests SET status = 'accepted' WHERE id = ?";
-              db.query(updateSql, [id], (error) => {
+              db.query(createMatchSql, [
+                  id, 
+                  request.sender_name, 
+                  request.sender_skill, 
+                  request.time_availability
+              ], (error) => {
                   if (error) {
                       db.rollback();
-                      return res.status(500).json({ message: "Error updating request status" });
+                      return res.status(500).json({ message: "Error creating match" });
                   }
 
-                  db.commit(err => {
-                      if (err) {
+                  // Update request status
+                  const updateSql = "UPDATE skill_swap_requests SET status = 'accepted' WHERE id = ?";
+                  db.query(updateSql, [id], (error) => {
+                      if (error) {
                           db.rollback();
-                          return res.status(500).json({ message: "Error finalizing match" });
+                          return res.status(500).json({ message: "Error updating request status" });
                       }
-                      res.json({ message: "Skill swap request accepted successfully!" });
+                      
+                      db.commit(err => {
+                          if (err) {
+                              db.rollback();
+                              return res.status(500).json({ message: "Error finalizing match" });
+                          }
+                          res.json({ message: "Skill swap request accepted successfully!" });
+                      });
                   });
               });
           });
@@ -307,13 +463,56 @@ router.post("/api/matches/accept/:id", (req, res) => {
 router.post("/api/matches/reject/:id", (req, res) => {
   const { id } = req.params;
 
-  const sql = "UPDATE skill_swap_requests SET status = 'declined' WHERE id = ? AND status = 'pending'";
-  db.query(sql, [id], (error, result) => {
-      if (error) {
-          console.error("Error rejecting request:", error);
+  db.beginTransaction(err => {
+      if (err) {
+          console.error("Error starting transaction:", err);
           return res.status(500).json({ message: "Error rejecting request" });
       }
-      res.json({ message: "Skill swap request rejected successfully!" });
+      
+      // Get the request details first
+      const fetchSql = "SELECT sender_id, recipient_id FROM skill_swap_requests WHERE id = ? AND status = 'pending'";
+      db.query(fetchSql, [id], (error, requests) => {
+          if (error) {
+              db.rollback();
+              return res.status(500).json({ message: "Error fetching request" });
+          }
+          
+          if (requests.length === 0) {
+              db.rollback();
+              return res.status(404).json({ message: "Request not found or already processed" });
+          }
+          
+          const request = requests[0];
+          
+          // Update the request status
+          const sql = "UPDATE skill_swap_requests SET status = 'declined' WHERE id = ? AND status = 'pending'";
+          db.query(sql, [id], (error, result) => {
+              if (error) {
+                  db.rollback();
+                  console.error("Error rejecting request:", error);
+                  return res.status(500).json({ message: "Error rejecting request" });
+              }
+              
+              // Also update any corresponding invite
+              const updateInviteSql = `
+                  UPDATE invites 
+                  SET status = 'rejected' 
+                  WHERE sender_id = ? AND receiver_id = ? AND status = 'pending'
+              `;
+              
+              db.query(updateInviteSql, [request.sender_id, request.recipient_id], (error) => {
+                  // Don't fail if this update doesn't work
+                  
+                  db.commit(err => {
+                      if (err) {
+                          db.rollback();
+                          return res.status(500).json({ message: "Error finalizing rejection" });
+                      }
+                      res.json({ message: "Skill swap request rejected successfully!" });
+                  });
+              });
+          });
+      });
   });
 });
 
@@ -351,32 +550,89 @@ router.put("/api/matches/progress/:id", (req, res) => {
   });
 });
 
-// Send an Invite
+// Send an Invite - Updated with better error handling
 app.post("/api/invites/send", (req, res) => {
   const { sender_id, receiver_id } = req.body;
+
+  console.log("Invite request received:", { sender_id, receiver_id });
 
   if (!sender_id || !receiver_id) {
       return res.status(400).json({ error: "Missing sender or receiver ID" });
   }
 
-  // Ensure both users exist before inserting invite
-  const checkUsersSql = "SELECT id FROM users WHERE id IN (?, ?)";
-  db.query(checkUsersSql, [sender_id, receiver_id], (err, results) => {
+  // Get information about both users
+  const getUsersSql = "SELECT id, name, skill, time_availability FROM users WHERE id IN (?, ?)";
+  db.query(getUsersSql, [sender_id, receiver_id], (err, userResults) => {
       if (err) {
           console.error("Database error:", err.message);
-          return res.status(500).json({ error: "Database error" });
+          return res.status(500).json({ error: "Database error: " + err.message });
       }
-      if (results.length !== 2) {
+      
+      console.log("User results:", userResults);
+      
+      if (userResults.length !== 2) {
           return res.status(400).json({ error: "Sender or Receiver does not exist" });
       }
 
-      const sql = "INSERT INTO invites (sender_id, receiver_id, status) VALUES (?, ?, 'pending')";
-      db.query(sql, [sender_id, receiver_id], (err, result) => {
+      // Find sender and receiver in results
+      const sender = userResults.find(user => user.id == sender_id);
+      const receiver = userResults.find(user => user.id == receiver_id);
+
+      console.log("Sender:", sender);
+      console.log("Receiver:", receiver);
+
+      // Insert into invites table
+      const inviteSql = "INSERT INTO invites (sender_id, receiver_id, status) VALUES (?, ?, 'pending')";
+      db.query(inviteSql, [sender_id, receiver_id], (err, inviteResult) => {
           if (err) {
               console.error("Error sending invite:", err.message);
-              return res.status(500).json({ error: "Database error" });
+              return res.status(500).json({ error: "Database error: " + err.message });
           }
-          res.status(201).json({ message: "Invite sent successfully!", inviteId: result.insertId });
+
+          // Generate a UUID for the skill_swap_request
+          let uuid;
+          try {
+              const { v4: uuidv4 } = require('uuid');
+              uuid = uuidv4();
+          } catch (error) {
+              console.error("UUID generation error:", error);
+              uuid = Date.now().toString(); // Fallback to timestamp if UUID fails
+          }
+          
+          console.log("Generated UUID:", uuid);
+          
+          // Insert into skill_swap_requests table
+          const requestSql = `
+              INSERT INTO skill_swap_requests 
+              (id, sender_id, recipient_id, sender_name, recipient_name, sender_skill, requested_skill, time_availability, status) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+          `;
+          
+          db.query(requestSql, [
+              uuid, 
+              sender_id, 
+              receiver_id, 
+              sender?.name || 'Unknown', 
+              receiver?.name || 'Unknown', 
+              sender?.skill || 'Not specified', 
+              receiver?.skill || 'Not specified', 
+              sender?.time_availability || 'Flexible'
+          ], (err, requestResult) => {
+              if (err) {
+                  console.error("Error creating skill swap request:", err.message);
+                  // Still return success for the invite, but log the error
+                  return res.status(201).json({ 
+                      message: "Invite sent successfully, but request creation failed", 
+                      inviteId: inviteResult.insertId
+                  });
+              }
+              
+              res.status(201).json({ 
+                  message: "Invite sent successfully!", 
+                  inviteId: inviteResult.insertId,
+                  requestId: uuid
+              });
+          });
       });
   });
 });
