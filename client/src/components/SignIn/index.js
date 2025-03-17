@@ -25,8 +25,38 @@ function SignIn({ onLogin }) {
         });
   
         console.log("User registered successfully!");
+        
+        // Fetch the user ID from the database
+        const response = await fetch(`/api/user/id?email=${encodeURIComponent(email)}`);
+        const data = await response.json();
+        
+        // Store user information in localStorage for persistence
+        localStorage.setItem('currentUser', JSON.stringify({
+          uid: firebase_uid,
+          email: email,
+          userId: data.userId // Store the SQL database ID
+        }));
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log(user);
+        
+        // Fetch the user ID from the database
+        const response = await fetch(`/api/user/id?email=${encodeURIComponent(user.email)}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user ID from database');
+        }
+        
+        const data = await response.json();
+        
+        // Store user information in localStorage for persistence
+        localStorage.setItem('currentUser', JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          userId: data.userId // Store the SQL database ID
+        }));
+        
         console.log("User logged in successfully!");
       }
   

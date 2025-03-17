@@ -1,91 +1,230 @@
-import React, { useState } from "react";
-import { TextField, Button, Container, Grid, Typography } from "@mui/material";
+import React, { useState, useEffect } from "react";
+import { Container, TextField, Button, CircularProgress, Typography, Chip, Card, CardContent, CardMedia, Grid, Box } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
-const Search = () => {
+function Search() {
   const [skill, setSkill] = useState("");
   const [timeAvailability, setTimeAvailability] = useState("");
-  const [results, setResults] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [inviteSending, setInviteSending] = useState({});
+  const [inviteStatus, setInviteStatus] = useState({});
+  const navigate = useNavigate();
 
-  const handleSearch = async () => {
-    if (!skill && !timeAvailability) {
-      alert("Please enter a skill or availability.");
+  // Get the current user from localStorage on component mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      setCurrentUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (skill === "" && timeAvailability === "") {
+      setSearchResults([]);
       return;
     }
 
+    const fetchSearchResults = async () => {
+      setLoading(true);
+      
+      try {
+        const response = await fetch(`/api/users/search?skill=${skill}&timeAvailability=${timeAvailability}`);
+        const data = await response.json();
+        if (response.ok) {
+          setSearchResults(data);
+        } else {
+          console.error(data.error);
+          setSearchResults([]);
+        }
+      } catch (error) {
+        console.error("Error fetching search results:", error);
+        setSearchResults([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSearchResults();
+  }, [skill, timeAvailability]);
+
+  const handleSelectUser = (userId) => {
+    navigate(`/profile/${userId}`); // Redirect to the selected user's profile
+  };
+
+  const handleSendInvite = async (userId) => {
+    if (!currentUser) {
+      alert("You must be logged in to send invites");
+      return;
+    }
+
+    setInviteSending(prev => ({ ...prev, [userId]: true }));
+    
     try {
-      const query = "/api/users/search";
-      const response = await fetch(query, {
-        method: "POST",
+      // Make sure we have the current user's ID
+      if (!currentUser.userId) {
+        console.error("Current user ID is missing:", currentUser);
+        throw new Error("User ID not available");
+      }
+      
+      console.log("Sending invite from", currentUser.userId, "to", userId);
+      
+      // Send the invite with the correct IDs
+      const response = await fetch('/api/invites/send', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          skill,
-          timeAvailability,
+          sender_id: currentUser.userId,
+          receiver_id: userId
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Search failed");
-      }
-
       const data = await response.json();
-      setResults(Array.isArray(data) ? data : []);
+      console.log("Invite response:", data);
+      
+      if (response.ok) {
+        setInviteStatus(prev => ({ 
+          ...prev, 
+          [userId]: { success: true, message: 'Invite sent successfully!' } 
+        }));
+      } else {
+        console.error("Failed to send invite:", data.error);
+        setInviteStatus(prev => ({ 
+          ...prev, 
+          [userId]: { success: false, message: data.error || 'Failed to send invite' } 
+        }));
+      }
     } catch (error) {
-      console.error("Error searching users:", error);
-      setResults([]);
+      console.error("Error sending invite:", error);
+      setInviteStatus(prev => ({ 
+        ...prev, 
+        [userId]: { success: false, message: 'Error sending invite: ' + error.message } 
+      }));
+    } finally {
+      setInviteSending(prev => ({ ...prev, [userId]: false }));
+      
+      // Clear status message after 5 seconds
+      setTimeout(() => {
+        setInviteStatus(prev => {
+          const newStatus = { ...prev };
+          delete newStatus[userId];
+          return newStatus;
+        });
+      }, 5000);
     }
   };
 
   return (
-    <Container>
+    <Container maxWidth="lg" style={{ marginTop: "50px", textAlign: "center" }}>
       <Typography variant="h4" gutterBottom>
-        Search Users by Skill and Availability
+        Search for Users
       </Typography>
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <TextField
-            label="Skill"
-            fullWidth
-            value={skill}
-            onChange={(e) => setSkill(e.target.value)}
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            label="Time Availability"
-            fullWidth
-            value={timeAvailability}
-            onChange={(e) => setTimeAvailability(e.target.value)}
-          />
-        </Grid>
-      </Grid>
+
+      <TextField
+        label="Search by Skill"
+        variant="outlined"
+        fullWidth
+        value={skill}
+        onChange={(e) => setSkill(e.target.value)}
+        style={{ marginBottom: "20px" }}
+      />
+      <TextField
+        label="Search by Time Availability"
+        variant="outlined"
+        fullWidth
+        value={timeAvailability}
+        onChange={(e) => setTimeAvailability(e.target.value)}
+        style={{ marginBottom: "20px" }}
+      />
+
       <Button
         variant="contained"
         color="primary"
-        onClick={handleSearch}
-        sx={{ marginTop: 2 }}
+        fullWidth
+        style={{ marginTop: "20px" }}
+        onClick={() => {
+          setSkill("");
+          setTimeAvailability("");
+        }} // Clear search fields
       >
-        Search
+        Clear Search
       </Button>
-      <Grid container spacing={2} sx={{ marginTop: 3 }}>
-        {results.length > 0 ? (
-          results.map((user) => (
-            <Grid item xs={12} md={4} key={user.id}>
-              <div style={{ border: "1px solid #ccc", padding: 16 }}>
-                <Typography variant="h6">{user.name}</Typography>
-                <Typography>Skill: {user.skill}</Typography>
-                <Typography>Availability: {user.time_availability}</Typography>
-                <Button>Send Invite</Button>
-              </div>
+
+      {loading && <CircularProgress color="inherit" />}
+      {searchResults.length > 0 && (
+        <Grid container spacing={3} style={{ marginTop: "20px" }}>
+          {searchResults.map((user) => (
+            <Grid item xs={12} sm={6} md={4} key={user.id}>
+              <Card>
+                <CardMedia
+                  component="img"
+                  alt={user.name}
+                  height="200"
+                  image={user.profile_picture || "https://via.placeholder.com/200"}
+                  title={user.name}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => handleSelectUser(user.id)}
+                />
+                <CardContent>
+                  <Typography variant="h6">{user.name}</Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    <strong>Skill:</strong> {user.skill}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    <strong>Location:</strong> {user.location}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    <strong>Time Availability:</strong> {user.time_availability}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    <strong>Portfolio Link:</strong> <a href={user.portfolio_link} target="_blank" rel="noopener noreferrer">{user.portfolio_link}</a>
+                  </Typography>
+                  
+                  <Box mt={2}>
+                    <Button 
+                      variant="contained" 
+                      color="primary"
+                      fullWidth
+                      disabled={inviteSending[user.id] || !currentUser}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendInvite(user.id);
+                      }}
+                    >
+                      {inviteSending[user.id] ? (
+                        <CircularProgress size={24} color="inherit" />
+                      ) : (
+                        "Send Invite"
+                      )}
+                    </Button>
+                    
+                    {inviteStatus[user.id] && (
+                      <Typography 
+                        variant="body2" 
+                        color={inviteStatus[user.id].success ? "success.main" : "error.main"}
+                        style={{ marginTop: "8px" }}
+                      >
+                        {inviteStatus[user.id].message}
+                      </Typography>
+                    )}
+                    
+                    {!currentUser && (
+                      <Typography variant="caption" color="error.main" style={{ marginTop: "4px" }}>
+                        Login to send invites
+                      </Typography>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
             </Grid>
-          ))
-        ) : (
-          <Typography>No users found</Typography>
-        )}
-      </Grid>
+          ))}
+        </Grid>
+      )}
     </Container>
   );
-};
+}
 
 export default Search;
