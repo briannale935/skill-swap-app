@@ -5,6 +5,7 @@ import Search from '../Search/Search';
 import Navbar from './navbar';
 import PostCreation from '../Blog/blog';
 import Matches from '../Matches';
+import Profile from '../Profile'; 
 
 function MainApp() {
   return (
@@ -14,6 +15,7 @@ function MainApp() {
         <Route path="/search" element={<Search />} />
         <Route path="/PostCreation" element={<PostCreation />} />
         <Route path="/Matches" element={<Matches />} />
+        <Route path="/Profile" element={<Profile />} />
       </Routes>
     </>
   );
