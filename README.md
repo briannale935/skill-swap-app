@@ -82,8 +82,11 @@ Enhancements as specified in 'User Stories' (ex. key word search)
 
 **Input**
 **To Sign In:**
-Email: fire20@gmail.com
-Password: password123 
+Email: aithy5@example.com
+Password: pass123 
 
-**Search**
-Can search for Software Developer as skill wil time availbility at 11 for search results to populate. We haven't added more users to database yet. 
+Email: brianna@example.com
+Password: pass123 
+
+Email: derek5@example.com
+Password: pass123 
