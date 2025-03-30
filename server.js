@@ -26,6 +26,7 @@ db.connect((err) => {
    }
    console.log('Connected to the MySQL database');
  });
+
   // Initialize router
 const router = express.Router();
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -61,6 +62,12 @@ app.post('/api/loadUserSettings', (req, res) => {
    connection.end();
 });
 
+// ---- REVIEWS ROUTES ----
+
+// Middleware to check user authentication from headers
+const reviewAuth = (req, res, next) => {
+  const userId = req.headers
+}
 
 // Register User After Firebase Signup
 app.post('/api/register', async (req, res) => {
