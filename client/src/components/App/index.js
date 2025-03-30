@@ -6,6 +6,7 @@ import Navbar from './navbar';
 import PostCreation from '../Blog/blog';
 import Matches from '../Matches';
 import Profile from '../Profile'; 
+import MyReviews from '../Reviews/MyReviews';
 
 function MainApp() {
   return (
@@ -16,6 +17,7 @@ function MainApp() {
         <Route path="/PostCreation" element={<PostCreation />} />
         <Route path="/Matches" element={<Matches />} />
         <Route path="/Profile" element={<Profile />} />
+        <Route path="/MyReviews" element={<MyReviews />} />
       </Routes>
     </>
   );

@@ -17,6 +17,9 @@ function Navbar() {
         <Button color="inherit" component={Link} to="/Profile">
           Profile
         </Button>
+        <Button color="inherit" component={Link} to="/MyReviews ">
+          My Reviews
+        </Button>
       </Toolbar>
     </AppBar>
   );

@@ -17,7 +17,7 @@ function SignIn({ onLogin }) {
         const user = userCredential.user;
         const firebase_uid = user.uid;
   
-        // ✅ Send only **email** & **firebase_uid** to backend
+        // Send only **email** & **firebase_uid** to backend
         await fetch("/api/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
