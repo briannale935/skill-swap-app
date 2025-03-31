@@ -20,6 +20,15 @@ function Navbar() {
         <Button color="inherit" component={Link} to="/MyReviews ">
           My Reviews
         </Button>
+
+        <Button color="inherit" component={Link} to="/WriteReviews ">
+          Write Reviews
+        </Button>
+
+        <Button color="inherit" component={Link} to="/ProfileReviews ">
+          Profile Reviews
+        </Button>
+
       </Toolbar>
     </AppBar>
   );

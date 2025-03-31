@@ -1,370 +1,247 @@
-import React, { useState, useEffect } from 'react';
-import {
-    Box, Typography, TextField, Button, Rating,
-    Card, CardContent, Container, paper,
-    Snackbar, Alert, CircularProgress
-} from '@mui/material';
-import StarIcon from '@mui/icons-material/Star';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { Grid, Typography, Button, TextField, Box, Card, Rating } from '@mui/material';
+import { FirebaseContext } from '../Firebase/context';
 
-const WriteReview = () => {
-    const navigate = useNavigate();
-    const { userId } = useParams();
-    const location = useLocation();
-    const recipientInfo = location.state?.recipientInfo || {};
-}
+// Rating labels
+const labels = {
+  0.5: 'Very Poor',
+  1: 'Poor',
+  1.5: 'Fair',
+  2: 'Okay',
+  2.5: 'Average',
+  3: 'Good',
+  3.5: 'Very Good',
+  4: 'Great',
+  4.5: 'Excellent',
+  5: 'Outstanding',
+};
 
-// Review form state
-const [formData, setFormData] = useState ({
+const getLabelText = (value) =>
+  `${value} Star${value !== 1 ? 's' : ''}, ${labels[value]}`;
+
+// Inline StarRating Component with safeguards
+const StarRating = ({ value, setValue }) => {
+  const [hover, setHover] = useState(-1);
+  const safeValue = value != null ? value : 0;
+  const label = (hover !== -1 ? labels[hover] : labels[safeValue]) || '';
+
+  return (
+    <Box display="flex" alignItems="center">
+      <Rating
+        name="hover-feedback"
+        value={safeValue}
+        precision={0.5}
+        getLabelText={getLabelText}
+        onChange={(event, newValue) => setValue(newValue)}
+        onChangeActive={(event, newHover) => setHover(newHover)}
+        // No custom emptyIcon—using the default icon
+        size="large"
+      />
+      {value != null && (
+        <Box sx={{ ml: 2 }}>
+          {label}
+        </Box>
+      )}
+    </Box>
+  );
+};
+
+const WriteReviews = () => {
+  // CORRECTION #1: Initialize reviewerId from localStorage (using the SQL DB userId)
+  const storedUser = JSON.parse(localStorage.getItem('currentUser'));
+  const [reviewerId, setReviewerId] = useState(() => storedUser?.userId || null);
+ 
+
+  // Get Firebase instance from context
+  const firebase = useContext(FirebaseContext);
+  console.log('Firebase context:', firebase);
+
+  // For debugging: log firebase and attach it to the window object
+  useEffect(() => {
+    console.log("Firebase context:", firebase);
+    if (firebase && firebase.auth) {
+      console.log("Firebase current user (Firebase UID):", firebase.auth.currentUser);
+    }
+  }, [firebase]);
+
+  const [formData, setFormData] = useState({
     title: '',
-    content: '',
-    rating: null
-});
+    text: '',
+    rating: null,
+  });
+  const [message, setMessage] = useState('');
+  const [ratingError, setRatingError] = useState(false);
+  // const [reviewerId, setReviewerId] = useState(null);
 
-// UI state
-const [errors, setErrors] = useState({});
-const [isSubmitting, setIsSubmitting] = useState(false);
-const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success'
-});
-const [recipient, setRecipient] = useState(recipientInfo);
-
-// Fetch recipient info if it wasn't passed through navigation state
-useEffect(() => {
-    if (!recipient.username && userId) {
-        fetchRecipientInfo();
+  // List for auth state changes (or check current user) from Firebase
+  useEffect(() => {
+    if (firebase && firebase.auth) {
+      const unsubscribe = firebase.auth.onAuthStateChanged((user) => {
+        console.log('Auth state changed, user:', user);
+        if (user) {
+          setReviewerId(user.uid);
+          // Optionally, update localStorage too:
+          localStorage.setItem('currentUser', JSON.stringify({ uid: user.uid }));
+        } else {
+          setReviewerId(null);
+          localStorage.removeItem('currentUser');
+        }
+      });
+      return () => unsubscribe();
+      // if (firebase && firebase.auth && firebase.auth.currentUser) {
+      //   setReviewerId(firebase.auth.currentuser.uid);
+      // } else {
+      //   setReviewerId(null);
+      // }
+    } else {
+      setReviewerId(null);
     }
-}, [userId, recipient]);
+  }, [firebase])
 
-const fetchRecipientInfo = async () => {
-    try {
-        const response = await fetch(`/api/users/%{userId}`);
-        if (!response.ok) throw new Error('Failed to fetch user info');
-
-        const userDate = await response.json();
-        setRecipient(userData);
-    } catch (error) {
-        console.error('Error fetching recipient info:', error);
-        setSnackbar({
-            open: true,
-            message: 'Unable to load user information',
-            severity: 'error'
-        });
-    }
-};
-
-
-// Handle form field changes
-const handleChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-        ...prev,
-        [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-    // Clear error for the field being changed
-    if (errors[name]) {
-        setErrors(prev => ({
-            ...prev,
-            [name]: ''
-        }));
-    }
-};
-
-// Handle Rating Chagne
-const handleRatingChange = (newValue) => {
-    setFormData(prev => ({
-        ...prev,
-        rating: newValue
-    }));
-
-    if (errors.rating) {
-        setErrors(prev => ({
-            ...prev,
-            rating: ''
-        }));
-    }
-};
-
-// Form validation
-const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.title.trim()) {
-        newErrors.title = 'Title is required';
-    }
-
-    if (!formData.content.trim()){
-        newErrors.content = 'Review content is required';
-    } else if (formData.content.length < 10) {
-        newErrors.content = 'Review content must be at least 10 characters';
-    }
-
-    if (formData.rating === null) {
-        newwErrors.rating = 'Please provide a rating';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-};
-
-// Handle form submission
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
-        return;
+    if (!formData.title.trim() || !formData.text.trim() || formData.rating == null) {
+      setMessage('Please provide a title, review text, and rating.');
+      setRatingError(formData.rating == null);
+      return;
     }
 
-    setIsSubmitting(true);
+    if (!reviewerId) {
+      setMessage('User not authenticated. Please log in.');
+      return;
+    }
 
     try {
-        const response = await fetch('/api/reviews', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // Include authentication header if using JWT
-                // 'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-                recipient_id: userId,
-                review_title: formData.title,
-                content: formData.content,
-                rating: formData.rating
-            })
-        });
+      // Construct the review payload. Adjust recipient_id as needed.
+      const newReview = {
+        reviewer_id: reviewerId,
+        recipient_id: 1, // For testing, we're using 1. Replace or set dynamically.
+        review_title: formData.title,
+        content: formData.text,
+        rating: formData.rating,
+        date_posted: new Date().toISOString(), // Optionally let backend set this via CURRENT_TIMESTAMP
+      };
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to submit review');
-        }
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'user-id': reviewerId, // Replace with the actual logged-in user's id
+        },
+        body: JSON.stringify(newReview),
+      });
 
-        setSnackbar({
-            open: true,
-            message: 'Review submitted successfully!',
-            severity: 'success'
-        });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit review');
+      }
 
-        // Reset form after successful submission
-        setFormData({
-            title: '',
-            content: '',
-            rating: null
-        });
-
-        // Redirect after a short delay to allow the user to see the success message
-        setTimeout(() => {
-            navigate(`/profile/${userId}`);
-        }, 1500);
-
+      setMessage('Review submitted successfully!');
+      // Reset form data
+      setFormData({ title: '', text: '', rating: null });
     } catch (error) {
-        console.error('Error submitting review:', error);
-        setSnackbar({
-            open: true,
-            message: error.message || 'Failed to submit review. Please try again.',
-            severity: 'error'
-        });
-    } finally {
-        setIsSubmitting(false);
+      console.error('Error submitting review:', error);
+      setMessage(error.message);
     }
-};
+  };
 
-// Handle Snackbar close
-const handleSnackbarClose = () => {
-    setSnackbar(prev => ({
-        ...prev,
-        open: false
-    }));
-};
-
-// Cancel and go back
-const handleCancel = () => {
-    navigate(-1)
-};
-
-return (
-    <Container maxWidth = "md">
-        <Box sx = {{ my: 4}}>
-            <Paper
-                elevation = {3}
-                sx = {{
-                    p: 4,
-                    borderRadius: 2,
-                    backgroundColor: '#f9f9f9'
-                }}
-            > 
-                <Typography
-                    variant = "h4"
-                    component = "h1"
-                    gutterBottom
-                    sx = {{
-                        textAlign: 'center',
-                        fontWeight: 'bold',
-                        mb: 3
-                    }}
-                >
-                    Write a Review
-                </Typography>
-
-                {recipient.username ? (
-                    <Typography
-                        variant = "h6"
-                        sx = {{ 
-                            textAlign: 'center',
-                            mb: 4,
-                            color: 'text.secondary'
-                        }}
-                    >
-                        Share your experience with {recipient.username}
-                    </Typography>
-                ) : (
-                    <Box sx = {{ display: 'flex', justifyContent: 'center', mb: 4 }}>
-                        <CircularProgress size={24} />
-                    </Box>
-                )}
-
-                <Card sx = {{ mb: 4, backgroundColor: 'white'}}>
-                    <CardContent>
-                        <form onSubmit = {handleSubmit}>
-                            <Box sx = {{ mb: 3 }}>
-                                <Typography variant = "subtitle1" sx = {{ mb: 1, fontWeight: 'medium' }}>
-                                    Review Title
-                                </Typography>
-                                <TextField
-                                    name = "title"
-                                    placeholder = "Summarize your experience"
-                                    fullWidth
-                                    value = {formData.title}
-                                    onChange = {handleChange}
-                                    error = {!!errors.title}
-                                    helperText = {errors.title}
-                                    disabled = {isSubmitting}
-                                />
-                            </Box>
-
-                            <Box sx = {{ mb: 3 }}>
-                                <Typography variant = "subtitle1" sx = {{ mb: 1, fontWeight: 'medium' }}>
-                                    Your Experience
-                                </Typography>
-                                <TextField 
-                                    name = "content"
-                                    placeholder = "Describe your skill swap experience in detail..."
-                                    multiline
-                                    rows = {6}
-                                    fullWidth
-                                    value = {formData.content}
-                                    onChagne = {handleChange}
-                                    error = {!!errors.content}
-                                    helperText = {errors.content}
-                                    disabled = {isSubmitting}
-                                />
-                            </Box>
-
-                            <Box sx = {{ mb: 4 }}>
-                                <Typography variant = "subtitle1" sx = {{ mb: 1, fontWeight: 'medium' }}>
-                                    Rating
-                                </Typography>
-                                <Box sx = {{ display: 'flex', alignItems: 'center' }}>
-                                    <Rating 
-                                        name = "rating"
-                                        value = {formData.rating}
-                                        precision = {0.5}
-                                        onChange = {(event, newValue) => {
-                                            handleRatingChange(newValue);
-                                        }}
-                                        disabled = {isSubmitting}
-                                        icon = {<StarIcon fontSize = "inherit" />}
-                                        emptyIcon = {<StarIcon fontSize = "inherit" />}
-                                        sx = {{
-                                            fontSize: '2rem',
-                                            '& .MuiRating-iconEmpty': {
-                                                opacity: 0.5
-                                            }
-                                        }}
-                                    />
-                                    {formData.rating !== null && (
-                                        <Typography variant = "body2" sx = {{ ml: 2 }}>
-                                            {formData.rating} out of 5 stars
-                                        </Typography>
-                                    )}
-                                </Box>
-                                {errors.rating && (
-                                    <Typography color = "error" variant = "caption" sx = {{ display: 'block', mt: 1 }}>
-                                        {errors.rating}
-                                    </Typography>
-                                )}  
-                            </Box>
-
-                            <Box sx = {{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                mt: 4
-                            }}>
-                                <Button
-                                    variant = "outlined"
-                                    onClick = {handleCancel}
-                                    disabled = {isSubmitting}
-                                    sx = {{ width: '120px' }}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button 
-                                    type = "submit"
-                                    variant = "contained"
-                                    color = "primary"
-                                    disabled = {isSubmitting}
-                                    sx = {{
-                                        width: '200px',
-                                        position: 'relative'
-                                    }}
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <CircularProgress 
-                                                size = {24}
-                                                sx = {{
-                                                    color: 'white',
-                                                    position: 'absolute',
-                                                    top: '50%',
-                                                    left: '50%',
-                                                    marginTop: '-12px',
-                                                    marginLeft: '-12px'
-                                                }}
-                                            />
-                                            Submitting...
-                                        </>
-                                    ) : (
-                                        'Submit Review'
-                                    )}
-                                </Button>
-                            </Box>
-                        </form>
-                    </CardContent>
-                </Card>
-
-                <Typography variant = "body2" color = "text.secondary" sx = {{ textAlign: 'center' }}>
-                    Your honest feedback helps improve our community's skill swapping experience.
-                </Typography>
-            </Paper>
-        </Box>
-
-        <Snackbar
-            open = {snackbar.open}
-            autoHideDuration = {6000}
-            onClose = {handleSnackbarClose}
-            anchorOrigin = {{ vertical: 'bottom', horizontal: 'center' }}
+  return (
+    <Card
+      sx={{
+        p: 4,
+        mb: 5,
+        boxShadow: 3,
+        backgroundColor: '#f9f9f9',
+        borderRadius: 3,
+      }}
+    >
+      <Typography
+        variant="h3"
+        align="center"
+        sx={{
+          fontFamily: 'Poppins, sans-serif',
+          mb: 3,
+          fontWeight: 'bold',
+          color: '#333',
+        }}
+      >
+        Review and Rate Your Experience
+      </Typography>
+      {message && (
+        <Typography
+          color={message.includes('success') ? 'success.main' : 'error'}
+          textAlign="center"
+          sx={{ mb: 2 }}
         >
-            <Alert 
-                onClose = {handleSnackbarClose}
-                severity = {snackbar.severity}
-                sx = {{ width: '100%' }}
+          {message}
+        </Typography>
+      )}
+      <Box sx={{ backgroundColor: '#fff', p: 3, borderRadius: 2, boxShadow: 2 }}>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                label="Title your review"
+                name="title"
+                fullWidth
+                value={formData.title}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Write a review..."
+                name="text"
+                fullWidth
+                multiline
+                rows={4}
+                value={formData.text}
+                onChange={handleChange}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="body1" sx={{ mb: 1 }}>
+                Rate Your Experience:
+              </Typography>
+              <StarRating
+                value={formData.rating}
+                setValue={(newValue) => {
+                  setFormData(prev => ({ ...prev, rating: newValue }));
+                  setRatingError(false);
+                }}
+              />
+              {ratingError && (
+                <Typography color="error" sx={{ mt: 1 }}>
+                  Please provide a rating before submitting.
+                </Typography>
+              )}
+            </Grid>
+          </Grid>
+          <Box sx={{ textAlign: 'center', mt: 4 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              type="submit"
+              sx={{
+                width: '250px',
+                height: '50px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+              }}
             >
-                {snackbar.message}
-            </Alert>
-        </Snackbar>
-    </Container>
-)
+              Submit Review
+            </Button>
+          </Box>
+        </form>
+      </Box>
+    </Card>
+  );
+};
 
-export default WriteReview;
+export default WriteReviews;

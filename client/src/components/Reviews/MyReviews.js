@@ -374,4 +374,4 @@ const MyReviews = () => {
 
 };
 
-export default MyReviews
+export default MyReviews;

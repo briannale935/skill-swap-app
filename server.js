@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import response from 'express';
+import { ReviewsRounded } from '@mui/icons-material';
 
 
 
@@ -66,8 +67,106 @@ app.post('/api/loadUserSettings', (req, res) => {
 
 // Middleware to check user authentication from headers
 const reviewAuth = (req, res, next) => {
-  const userId = req.headers
-}
+  const userId = req.headers['user-id']
+  if (!userId) return res.status(401).json({ error: 'User not authenticated '})
+  req.userId = userId
+  next();
+};
+
+// GET all reviews written by the authenticated user
+app.get('/api/my-reviews', reviewAuth, (req, res) => {
+  const sql = `SELECT * FROM reviews where reviewer_id = ? ORDER BY date_posted DESC`;
+  db.query(sql, [req.userId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// GET reviews for a specific recipient using query params
+app.get('/api/reviews', (req, res) => {
+  const recipientId = req.query.recipient_id;
+  if (!recipientId) {
+    return res.status(400).json({ error: 'Missing recipient_id in query parameters' });
+  }
+
+  const sql = `SELECT * FROM reviews WHERE recipient_id = ? ORDER BY date_posted DESC`;
+  db.query(sql, [recipientId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// POST create a new review
+app.post('/api/reviews', reviewAuth, (req, res) => {
+  const { recipient_id, review_title, content, rating } = req.body;
+  const reviewer_id = req.userId;
+  if (!recipient_id || !review_title || !content || rating == undefined) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // Get usernames for reviewer and recipient
+  const getUsernames = `SELECT id, username FROM users WHERE id IN (?, ?)`;
+  db.query(getUsernames, [reviewer_id, recipient_id], (err, users) => {
+    if (err || users.length < 2) {
+      return res.status(400).json({ error: 'User(s) not found'})
+    }
+
+    const reviewer = users.find(u => u.id == reviewer_id);
+    const recipient = users.find(u => u.id == recipient_id);
+
+    const insertReview = `
+      INSERT INTO reviews
+      (reviewer_id, reviewer_username, recipient_id, recipient_username, review_title, content, rating)
+    `;
+
+    db.query(
+      insertReview,
+      [
+        reviewer.id,
+        reviewer.username,
+        recipient.id,
+        recipient.username,
+        review_title,
+        content,
+        rating
+      ],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: 'Review created successfully', review_id: result.insertId})
+      }
+    );
+  });
+});
+
+// PUT update an existing review
+app.put('/api/reviews/:id', reviewAuth, (req, res) => {
+  const reviewId = req.params.id;
+  const { review_title, content, rating } = req.body;
+
+  const updateSql = `
+    UPDATE reviews
+    SET review_title = ?, content = ?, rating = ?, last_updated = CURRENT_TIMESTAMP
+    WHERE review_id = ? AND reviewer_id = ?
+  `;
+
+  db.query(updateSql, [review_title, content, rating, reviewId, req.userId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(403).json({ error: 'Unauthorized or review not found' })
+    res.json({ message: 'Review updated successfully'});
+  });
+});
+
+// DELETE a review
+app.delete('/api/reviews/:id', reviewAuth, (req, res) => {
+  const reviewId = req.params.id;
+
+  const deleteSql = `DELETE FROM reviews WHERE review_id = ? AND reviewer_id = ?`
+  db.query(deleteSql, [reviewId, req.userId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(403).json({ error: 'Unauthorized or review not found' });
+    res.json({ message: 'Review deleted successfully'})
+  })
+})
 
 // Register User After Firebase Signup
 app.post('/api/register', async (req, res) => {
