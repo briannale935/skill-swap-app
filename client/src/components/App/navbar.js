@@ -21,9 +21,9 @@ function Navbar() {
           My Reviews
         </Button>
 
-        <Button color="inherit" component={Link} to="/WriteReviews ">
+        {/* <Button color="inherit" component={Link} to="/WriteReviews ">
           Write Reviews
-        </Button>
+        </Button> */}
 
         <Button color="inherit" component={Link} to="/ProfileReviews ">
           Profile Reviews

@@ -96,36 +96,44 @@ app.get('/api/reviews', (req, res) => {
   });
 });
 
-// POST create a new review
+// POST: Create a new review
 app.post('/api/reviews', reviewAuth, (req, res) => {
+  // Expect recipient_id, review_title, content, and rating in the request body
   const { recipient_id, review_title, content, rating } = req.body;
+  // const { review_title, content, rating } = req.body;
   const reviewer_id = req.userId;
+
+  // Validate required fields
   if (!recipient_id || !review_title || !content || rating == undefined) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  // For testing, we set a dummy recipient_id
+  // const dummyRecipientId = 1;
+
   // Get usernames for reviewer and recipient
-  const getUsernames = `SELECT id, username FROM users WHERE id IN (?, ?)`;
-  db.query(getUsernames, [reviewer_id, recipient_id], (err, users) => {
+  const getUserNames = `SELECT id, name FROM users WHERE id IN (?, ?)`;
+  db.query(getUserNames, [reviewer_id, /*dummyRecipientId*/ recipient_id], (err, users) => {
     if (err || users.length < 2) {
       return res.status(400).json({ error: 'User(s) not found'})
     }
 
     const reviewer = users.find(u => u.id == reviewer_id);
-    const recipient = users.find(u => u.id == recipient_id);
+    const recipient = users.find(u => u.id == recipient_id /*recipient_id*/);
 
     const insertReview = `
       INSERT INTO reviews
       (reviewer_id, reviewer_username, recipient_id, recipient_username, review_title, content, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.query(
       insertReview,
       [
         reviewer.id,
-        reviewer.username,
+        reviewer.name,
         recipient.id,
-        recipient.username,
+        recipient.name,
         review_title,
         content,
         rating
@@ -137,6 +145,7 @@ app.post('/api/reviews', reviewAuth, (req, res) => {
     );
   });
 });
+
 
 // PUT update an existing review
 app.put('/api/reviews/:id', reviewAuth, (req, res) => {

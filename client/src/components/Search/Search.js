@@ -200,6 +200,20 @@ function Search() {
                         "Send Invite"
                       )}
                     </Button>
+
+                    {/* Write a Review Button */}
+                    <Button 
+                      variant="contained" 
+                      color="secondary"
+                      fullWidth
+                      style={{ marginTop: "10px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/WriteReviews', { state: {recipientId: user.id } });
+                      }}
+                    >
+                      Write a Review
+                    </Button>
                     
                     {inviteStatus[user.id] && (
                       <Typography 

@@ -1,6 +1,9 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Grid, Typography, Button, TextField, Box, Card, Rating } from '@mui/material';
+import { Grid, Typography, Button, TextField, Box, Card, Rating,
+          Dialog, DialogTitle, DialogContent, DialogActions
+ } from '@mui/material';
 import { FirebaseContext } from '../Firebase/context';
+import { useLocation } from 'react-router-dom';
 
 // Rating labels
 const labels = {
@@ -15,7 +18,7 @@ const labels = {
   4.5: 'Excellent',
   5: 'Outstanding',
 };
-
+ 
 const getLabelText = (value) =>
   `${value} Star${value !== 1 ? 's' : ''}, ${labels[value]}`;
 
@@ -49,10 +52,16 @@ const StarRating = ({ value, setValue }) => {
 const WriteReviews = () => {
   // CORRECTION #1: Initialize reviewerId from localStorage (using the SQL DB userId)
   const storedUser = JSON.parse(localStorage.getItem('currentUser'));
-  const [reviewerId, setReviewerId] = useState(() => storedUser?.userId || null);
+  const reviewerId = storedUser?.userId; // reviewerId set
  
+  // Extract recipientId from navigation state
+  const location = useLocation();
+  const recipientId = location.state?.recipientId || 1; // Default to 1 if not provided
 
-  // Get Firebase instance from context
+  // For debugging: log recipientId
+  console.log('Recipient ID for review:', recipientId);
+
+  // // Get Firebase instance from context
   const firebase = useContext(FirebaseContext);
   console.log('Firebase context:', firebase);
 
@@ -73,31 +82,9 @@ const WriteReviews = () => {
   const [ratingError, setRatingError] = useState(false);
   // const [reviewerId, setReviewerId] = useState(null);
 
-  // List for auth state changes (or check current user) from Firebase
-  useEffect(() => {
-    if (firebase && firebase.auth) {
-      const unsubscribe = firebase.auth.onAuthStateChanged((user) => {
-        console.log('Auth state changed, user:', user);
-        if (user) {
-          setReviewerId(user.uid);
-          // Optionally, update localStorage too:
-          localStorage.setItem('currentUser', JSON.stringify({ uid: user.uid }));
-        } else {
-          setReviewerId(null);
-          localStorage.removeItem('currentUser');
-        }
-      });
-      return () => unsubscribe();
-      // if (firebase && firebase.auth && firebase.auth.currentUser) {
-      //   setReviewerId(firebase.auth.currentuser.uid);
-      // } else {
-      //   setReviewerId(null);
-      // }
-    } else {
-      setReviewerId(null);
-    }
-  }, [firebase])
-
+  // // For now, use a dummy recipient id of 1
+  // const dummyRecipientId = 1;
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -121,7 +108,7 @@ const WriteReviews = () => {
       // Construct the review payload. Adjust recipient_id as needed.
       const newReview = {
         reviewer_id: reviewerId,
-        recipient_id: 1, // For testing, we're using 1. Replace or set dynamically.
+        recipient_id: recipientId, // For testing, we're using 1. Replace or set dynamically.
         review_title: formData.title,
         content: formData.text,
         rating: formData.rating,
