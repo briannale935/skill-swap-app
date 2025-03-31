@@ -126,6 +126,7 @@ app.post('/api/reviews', reviewAuth, (req, res) => {
       (reviewer_id, reviewer_username, recipient_id, recipient_username, review_title, content, rating)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
+    
 
     db.query(
       insertReview,

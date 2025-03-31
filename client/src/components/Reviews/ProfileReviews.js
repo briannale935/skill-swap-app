@@ -133,7 +133,7 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
                     </Typography>
                   )}
                   <Typography variant="subtitle2" sx={{ color: '#666', fontWeight: 'bold', mt: 2 }}>
-                    Written by: {review.username ? review.username : 'Anonymous'}
+                    Written by: {review.reviewer_username ? review.reviewer_username : 'Anonymous'}
                   </Typography>
                 </CardContent>
               </Card>
