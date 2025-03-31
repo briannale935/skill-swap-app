@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Grid, Typography, Card, CardContent, Box, Paper, LinearProgress } from '@mui/material';
 
 const ProfileReviews = ({ fetchProfileReviews }) => {
+  // State for storing reviews and any message (e.g., error messages)
   const [reviews, setReviews] = useState([]);
   const [message, setMessage] = useState("");
 
@@ -16,6 +17,7 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
     }
   }, [fetchProfileReviews]);
 
+  // Calculate the average rating using useMemo for performance
   const averageRating = useMemo(() => {
     const validRatings = reviews
       .map((review) => parseFloat(review.rating))

@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Container, TextField, Button, CircularProgress, Typography, Chip, Card, CardContent, CardMedia, Grid, Box } from "@mui/material";
+import { Container, TextField, Button, CircularProgress, Typography, Chip, 
+  Card, CardContent, CardMedia, Grid, Box,
+  Dialog, DialogTitle, DialogContent
+ } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import ProfileReviews from "../Reviews/ProfileReviews";
 
 function Search() {
   const [skill, setSkill] = useState("");
@@ -10,6 +14,8 @@ function Search() {
   const [currentUser, setCurrentUser] = useState(null);
   const [inviteSending, setInviteSending] = useState({});
   const [inviteStatus, setInviteStatus] = useState({});
+  const [openReviewsDialog, setOpenReviewsDialog] = useState(false);
+  const [selectedUserForReviews, setSelectedUserForReviews] = useState(null);
   const navigate = useNavigate();
 
   // Get the current user from localStorage on component mount
@@ -117,6 +123,24 @@ function Search() {
     }
   };
 
+  // Open the reviews dialog for a specific user
+  const handleOpenReviews = (user) => {
+    setSelectedUserForReviews(user);
+    setOpenReviewsDialog(true);
+  };
+
+  // Function to fetch profile reviews for the selected user
+  const fetchProfileReviews = async() => {
+    if (!selectedUserForReviews) {
+      throw new Error("No user selected for reviews");
+    }
+    const response = await fetch(`/api/reviews?recipient_id=${selectedUserForReviews.id}`);
+    if (!response.ok) {
+      throw new Error("Error fetching reviews");
+    }
+    return response.json();
+  };
+
   return (
     <Container maxWidth="lg" style={{ marginTop: "50px", textAlign: "center" }}>
       <Typography variant="h4" gutterBottom>
@@ -214,6 +238,20 @@ function Search() {
                     >
                       Write a Review
                     </Button>
+
+                    {/* New Button: Reviews for Profile */}
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      fullWidth
+                      style={{ marginTop: "10px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenReviews(user);
+                      }}
+                    >
+                      Reviews for Profile
+                    </Button>
                     
                     {inviteStatus[user.id] && (
                       <Typography 
@@ -237,6 +275,16 @@ function Search() {
           ))}
         </Grid>
       )}
+
+      {/* Reviews Dialog: Opens when "Reviews for Profile" is clicked */}
+      <Dialog open={openReviewsDialog} onClose={() => setOpenReviewsDialog(false)} fullWidth maxWidth="md">
+        <DialogTitle>
+          Profile Reviews for {selectedUserForReviews ? selectedUserForReviews.name : ""}
+        </DialogTitle>
+        <DialogContent>
+          <ProfileReviews fetchProfileReviews={fetchProfileReviews} />
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 }
