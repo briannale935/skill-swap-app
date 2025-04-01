@@ -116,7 +116,7 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
                         })
                       : 'Date not available'}
                   </Typography>
-                  {review.last_updated && (
+                  {review.last_updated && review.last_updated !== review.date_posted && (
                     <Typography
                       variant="caption"
                       sx={{ mt: 1, display: 'block', color: '#666' }}

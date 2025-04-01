@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   Typography, Button, Box, Card, CardContent, 
   Paper, Grid, IconButton, Dialog, DialogTitle, 
@@ -28,7 +28,6 @@ const MyReviews = () => {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [reviewToDelete, setReviewToDelete] = useState(null);
 
-
     // Status notification
     const [notification, setNotification] = useState({ show: false, message: '', type: 'success'});
 
@@ -41,13 +40,26 @@ const MyReviews = () => {
     const fetchMyReviews = async () => {
         setLoading(true);
         try {
+            // Log what is in localStorage before parsing
+            const storedUserString = localStorage.getItem('currentUser');
+            console.log("Stored user string:", storedUserString);
+
+            // Get the stored user (ensure that currentUser is stored as JSON)
+            const storedUser = storedUserString ? JSON.parse(storedUserString) : null;
+            if (!storedUser || !storedUser.userId) {
+                throw new Error("No user is logged in");
+            }
+            const userId = storedUser.userId;
+            console.log("Fetched userId:", userId);
+            
+            // Send a GET request to your backend endpoint, including the user-id header.
             const response = await fetch('/api/my-reviews', {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                     // Include authentication token if using JWT or similar
                     // 'Authorization': `Bearer ${localStorage.getItem('token')}
-
+                    'user-id': userId
                 }
             });
 
@@ -56,8 +68,11 @@ const MyReviews = () => {
             }
 
             const data = await response.json();
+            console.log("Fetched reviews:", data);
+
             setReviews(data);
             setError(null);
+
         } catch (err) {
             console.error('Error fetching reviews:', err);
             setError('Unable to load your reviews. Please try again later.');
@@ -66,8 +81,21 @@ const MyReviews = () => {
         }
     };
 
+    // Calculate Average Rating (NEW SECTION)
+    const averageRating = useMemo(() => {
+        const validRatings = reviews
+            .map(review => parseFloat(review.rating))
+            .filter(rating => !isNaN(rating));
+
+        if (validRatings.length === 0) return 0;
+
+        const sum = validRatings.reduce((acc, rating) => acc + rating, 0);
+        return (sum / validRatings.length).toFixed(1);
+    }, [reviews]);
+
     // Open edit dialog and populate with review data
     const handleEditClick = (review) => {
+        setCurrentReview(review);
         setEditFormData({
             review_title: review.review_title,
             content: review.content,
@@ -96,10 +124,13 @@ const MyReviews = () => {
     // Update review in the database
     const handleUpdateReview = async () => {
         try {
+            const storedUser = JSON.parse(localStorage.getItem('currentUser'));
+            const userId = storedUser.userId;
             const response = await fetch(`/api/reviews/${currentReview.review_id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    'user-id': userId,
                     // Include authentication if needed
                     // 'Authorization': `Bearer ${localStorage.getItem('token')}
                 },
@@ -136,10 +167,13 @@ const MyReviews = () => {
     // Delete review from the database
     const handleDeleteReview = async () => {
         try {
+            const storedUser = JSON.parse(localStorage.getItem('currentUser'));
+            const userId = storedUser.userId;
             const response = await fetch(`/api/reviews/${reviewToDelete.review_id}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-type': 'application/json',
+                    'user-id': userId,
                     // Include authentication if needed
                     // 'Authorizawtion': `Bearer ${localStorage.getItem('token')}
                 }
@@ -193,6 +227,32 @@ const MyReviews = () => {
                 My Reviews
             </Typography>
 
+            {/* Average Rating Meter (NEW SECTION) */}
+            {reviews.length > 0 && (
+                <Paper sx={{ p: 4, mb: 3, backgroundColor: '#ffffff', borderRadius: 3, boxShadow: 4 }}>
+                <Typography variant="h5" align="center" sx={{ mb: 1 }}>
+                    Average Rating Across Your Reviews: {averageRating} ★
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ flexGrow: 1, mr: 2, height: 10, borderRadius: 5, backgroundColor: '#ddd' }}>
+                        <Box sx={{ width: `${(parseFloat(averageRating) / 5) * 100}%`, height: '100%', backgroundColor: '#4caf50', borderRadius: 5 }} />
+                    </Box>
+                        <Typography variant="body2">{averageRating} / 5</Typography>
+                    </Box>
+                </Paper>
+      )}
+
+            {/* Total Review Count */}
+            {reviews.length > 0 && (
+                <Typography 
+                    variant="h5" 
+                    align="center" 
+                    sx={{ mt: 2, mb: 3, color: "#555", fontWeight: "500" }}
+                >
+                    You have currently written {reviews.length} {reviews.length === 1 ? "review" : "reviews"}.
+                </Typography>
+        )}
+
             {/* Error Message */}
             {error && (
                 <Paper sx= {{ p: 2, mb: 3, bgcolor: '#ffebee' }}>
@@ -209,10 +269,10 @@ const MyReviews = () => {
                     {reviews.length === 0 ? (
                         <Paper sx = {{ p: 4, textAlign: "center" }}>
                             <Typography variant = "h6">
-                                You haven't written any reviews yet.
+                                You haven't written any reviews yet. Be sure to share your skill swap experiences.
                             </Typography>
                         </Paper>
-                    ) : (
+                    ) : ( 
                         /* Reviews Grid */
                         <Grid container spacing = {3}>
                             {reviews.map((review) => (
@@ -233,11 +293,11 @@ const MyReviews = () => {
                                             }}>
                                                 <Box>
                                                     <Typography variant = "h5" component = "h2" sx = {{ fontWeight: "bold" }}>
-                                                        {review.review_title}
+                                                        {String(review.review_title)}
                                                     </Typography>
-                                                    <Typography variant = "subtitle1" color = "text.secondary">
-                                                        For: {review.recipient_username}
-                                                    </Typography>
+                                                    {/* <Typography variant = "subtitle1" color = "text.secondary">
+                                                        For: {review.recipient_username ? String(review.recipient_username) : 'Anonymous' }
+                                                    </Typography> */}
                                                 </Box>
 
                                                 {/* Action Buttons */}
@@ -247,14 +307,14 @@ const MyReviews = () => {
                                                         aria-label = "edit review"
                                                         color = "primary"
                                                     >
-                                                        <EditIcon />
+                                                        <span style={{ fontSize: "1.5rem", display: "inline-block" }}>✏️  </span>
                                                     </IconButton>
                                                     <IconButton
                                                         onClick = {() => handleDeleteClick(review)}
                                                         aria-label = "delete review"
                                                         color = "error"
                                                     >
-                                                        <DeleteIcon />
+                                                        <span style={{ fontSize: "1.5rem", display: "inline-block" }}>🗑️</span>
                                                     </IconButton>
                                                 </Box>
                                             </Box>
@@ -265,17 +325,17 @@ const MyReviews = () => {
                                                     value = {review.rating}
                                                     readOnly
                                                     precision = {0.5}
-                                                    emptyIcon = {<StarBorderIcon fontSize="inherit" />}
-                                                    icon = {<StarIcon fontSize = "inherit" />}
+                                                    emptyIcon={<span style={{ fontSize: "inherit", color: "#aaa" }}>☆</span>}
+                                                    icon={<span style={{ fontSize: "inherit", color: "gold" }}>★</span>}
                                                 />
                                                 <Typography variant = "body2" sx = {{ ml: 1 }}>
-                                                    ({review.rating}/5)
+                                                    ({Number(review.rating)}/5)
                                                 </Typography>
                                             </Box>
 
                                             {/* Review Content */}
                                             <Typography>
-                                                {review.content}
+                                            {typeof review.content === 'object' ? JSON.stringify(review.content) : review.content}
                                             </Typography>
 
                                             {/* Timestamps */}
@@ -317,8 +377,10 @@ const MyReviews = () => {
 
                     {/* Edit Dialog */}
                     <Dialog open = {editDialogOpen} onClose = {() => setEditDialogOpen(false)} maxWidth = "md" fullWidth>
+                        
                         <DialogTitle>Edit Review</DialogTitle>
                         <DialogContent>
+                            <Box sx={{ mt: 2 }}>
                             <TextField
                                 margin = "dense"
                                 name = "content"
@@ -330,6 +392,7 @@ const MyReviews = () => {
                                 onChange = {handleEditFormChange}
                                 sx = {{ mb: 2 }}
                             />
+
                             <Typography component = "legend">Rating</Typography>
                             <Rating 
                                 name = "rating"
@@ -339,6 +402,7 @@ const MyReviews = () => {
                                     handleRatingChange(newValue);
                                 }}
                             />
+                            </Box>
                         </DialogContent>
                         <DialogActions>
                             <Button onClick = {() => setEditDialogOpen(false)} color = "primary">

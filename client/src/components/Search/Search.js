@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { Container, TextField, Button, CircularProgress, Typography, Chip, 
   Card, CardContent, CardMedia, Grid, Box,
-  Dialog, DialogTitle, DialogContent
+  Dialog, DialogTitle, DialogContent, IconButton
  } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import ProfileReviews from "../Reviews/ProfileReviews";
+import WriteReviews from "../Reviews/WriteReviews";
+
+import CloseIcon from '@mui/icons-material/Close';
+
+
 
 function Search() {
   const [skill, setSkill] = useState("");
@@ -14,8 +19,14 @@ function Search() {
   const [currentUser, setCurrentUser] = useState(null);
   const [inviteSending, setInviteSending] = useState({});
   const [inviteStatus, setInviteStatus] = useState({});
+
+  // Controls Write Review dialog
+  const [openWriteReviewDialog, setOpenWriteReviewDialog] = useState(false);
+  const [selectedUserForReview, setSelectedUserForReview] = useState(null);
+
   const [openReviewsDialog, setOpenReviewsDialog] = useState(false);
   const [selectedUserForReviews, setSelectedUserForReviews] = useState(null);
+
   const navigate = useNavigate();
 
   // Get the current user from localStorage on component mount
@@ -123,6 +134,17 @@ function Search() {
     }
   };
 
+  // Open the Write review dialog for a specific user.
+  const handleOpenWriteReview = (user) => {
+    setSelectedUserForReview(user);
+    setOpenWriteReviewDialog(true);
+  };
+
+  // NEW: Function to handle successful review submission.
+  const handleReviewSubmitSuccess = () => {
+    setOpenWriteReviewDialog(false);
+  };
+
   // Open the reviews dialog for a specific user
   const handleOpenReviews = (user) => {
     setSelectedUserForReviews(user);
@@ -225,7 +247,7 @@ function Search() {
                       )}
                     </Button>
 
-                    {/* Write a Review Button */}
+                    {/* Write a Review Button
                     <Button 
                       variant="contained" 
                       color="secondary"
@@ -234,6 +256,20 @@ function Search() {
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate('/WriteReviews', { state: {recipientId: user.id } });
+                      }}
+                    >
+                      Write a Review
+                    </Button> */}
+
+                    {/* NEW: Write a Review Button that opens a popup dialog */}
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      fullWidth
+                      style={{ marginTop: "10px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenWriteReview(user);
                       }}
                     >
                       Write a Review
@@ -276,15 +312,118 @@ function Search() {
         </Grid>
       )}
 
-      {/* Reviews Dialog: Opens when "Reviews for Profile" is clicked */}
-      <Dialog open={openReviewsDialog} onClose={() => setOpenReviewsDialog(false)} fullWidth maxWidth="md">
-        <DialogTitle>
-          Profile Reviews for {selectedUserForReviews ? selectedUserForReviews.name : ""}
+      {/* Write Review Dialog: Opens when "Write a Review" is clicked */}
+      <Dialog
+        open={openWriteReviewDialog}
+        onClose={() => setOpenWriteReviewDialog(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ m: 0, p: 2, position: "relative" }}>
+          Write a Review for {selectedUserForReview ? selectedUserForReview.name : ""}
+          <IconButton
+            aria-label="close"
+            onClick={() => setOpenWriteReviewDialog(false)}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              padding: 0,
+              color: (theme) => theme.palette.grey[500],
+            }}
+          >
+            <span
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: "bold",
+                cursor: "pointer",
+                color: "#f44336",
+                backgroundColor: "#fff",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                transition: "transform 0.2s, box-shadow 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = "scale(1.1)";
+                e.currentTarget.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
+              }}
+            >
+              X
+            </span>
+          </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
+          {/* WriteReviews receives an onSuccess callback that will close the dialog when submission succeeds */}
+          <WriteReviews  
+            recipientId={selectedUserForReview ? selectedUserForReview.id : 1} 
+            onSuccess={handleReviewSubmitSuccess}
+            onClose={() => setOpenWriteReviewDialog(false)}
+            />
+        </DialogContent>
+      </Dialog>
+
+      {/* Reviews Dialog using Material-UI's Dialog with Close Button */}
+      <Dialog
+        open={openReviewsDialog}
+        onClose={() => setOpenReviewsDialog(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle sx={{ m: 0, p: 2, position: "relative" }}>
+          Profile Reviews for {selectedUserForReviews ? selectedUserForReviews.name : ""}
+          <IconButton
+            aria-label="close"
+            onClick={() => setOpenReviewsDialog(false)}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              padding: 0,
+            }}
+          >
+            <span
+    style={{
+      fontSize: "1.5rem",
+      fontWeight: "bold",
+      cursor: "pointer",
+      color: "#f44336", // red text
+      backgroundColor: "#fff", // white background
+      borderRadius: "50%",
+      width: "32px",
+      height: "32px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+      transition: "transform 0.2s, box-shadow 0.2s",
+    }}
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = "scale(1.1)";
+      e.currentTarget.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.3)";
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = "scale(1)";
+      e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.2)";
+    }}
+  >
+    X
+  </span>
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           <ProfileReviews fetchProfileReviews={fetchProfileReviews} />
         </DialogContent>
       </Dialog>
+
     </Container>
   );
 }

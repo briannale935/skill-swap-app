@@ -68,8 +68,11 @@ app.post('/api/loadUserSettings', (req, res) => {
 // Middleware to check user authentication from headers
 const reviewAuth = (req, res, next) => {
   const userId = req.headers['user-id']
-  if (!userId) return res.status(401).json({ error: 'User not authenticated '})
+  if (!userId) {
+    return res.status(401).json({ error: 'User not authenticated '})
+  }
   req.userId = userId
+  console.log("Authenticated reviewer_id:", req.userId);  // <-- Debug log
   next();
 };
 

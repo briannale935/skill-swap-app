@@ -49,14 +49,15 @@ const StarRating = ({ value, setValue }) => {
   );
 };
 
-const WriteReviews = () => {
+const WriteReviews = ({ recipientId: propRecipientId, onSuccess, onClose }) => {
   // CORRECTION #1: Initialize reviewerId from localStorage (using the SQL DB userId)
   const storedUser = JSON.parse(localStorage.getItem('currentUser'));
   const reviewerId = storedUser?.userId; // reviewerId set
  
   // Extract recipientId from navigation state
   const location = useLocation();
-  const recipientId = location.state?.recipientId || 1; // Default to 1 if not provided
+  const recipientIdFromState = location.state?.recipientId; // Default to 1 if not provided
+  const recipientId = propRecipientId || recipientIdFromState || 1;
 
   // For debugging: log recipientId
   console.log('Recipient ID for review:', recipientId);
@@ -104,6 +105,11 @@ const WriteReviews = () => {
       return;
     }
 
+    if (!recipientId) {
+      setMessage('No recipient specified for this review.');
+      return;
+    }
+
     try {
       // Construct the review payload. Adjust recipient_id as needed.
       const newReview = {
@@ -132,6 +138,11 @@ const WriteReviews = () => {
       setMessage('Review submitted successfully!');
       // Reset form data
       setFormData({ title: '', text: '', rating: null });
+
+      if (typeof onSuccess === 'function') onSuccess();
+      if (typeof onClose === 'function') onClose();
+      
+
     } catch (error) {
       console.error('Error submitting review:', error);
       setMessage(error.message);
