@@ -5,13 +5,15 @@ import {
   Button,
   Typography,
   Avatar,
+  Select,
+  MenuItem,
   InputLabel,
   FormControl,
   Chip,
   Paper,
   Box,
 } from "@mui/material";
-import { auth } from "../../firebase";
+import { auth } from "../../firebase"; // Firebase authentication import
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useNavigate } from "react-router-dom";
 
@@ -33,6 +35,7 @@ function Profile() {
     const user = auth.currentUser;
     if (user) {
       setEmail(user.email);
+
       const fetchProfile = async () => {
         try {
           const response = await fetch(`/api/users/profile?firebase_uid=${user.uid}`);
@@ -56,6 +59,7 @@ function Profile() {
           setMessage("Error fetching profile data.");
         }
       };
+
       fetchProfile();
     }
   }, []);
@@ -110,10 +114,10 @@ function Profile() {
 
   const handleTimeChange = (event) => {
     const value = event.target.value;
-    setTimeAvailability(value.map(Number));
+    setTimeAvailability(value.map(Number)); // Ensure numbers only
   };
 
-  const timeOptions = Array.from({ length: 24 }, (_, i) => i);
+  const timeOptions = Array.from({ length: 24 }, (_, i) => i); // Generates 0 - 23
 
   return (
     <Box sx={{ backgroundColor: "#c8d8e4", minHeight: "100vh", py: 5 }}>
@@ -161,7 +165,7 @@ function Profile() {
           </Box>
 
           {/* Input Fields */}
-          {[
+          {[ 
             { label: "Name", value: name, setter: setName },
             { label: "Skill", value: skill, setter: setSkill },
             { label: "Location", value: location, setter: setLocation },
@@ -195,50 +199,46 @@ function Profile() {
             />
           ))}
 
-          {/* Time Availability Section */}
-          <FormControl fullWidth margin="normal" variant="outlined">
+          {/* Time Availability */}
+          <FormControl fullWidth margin="normal">
             <InputLabel shrink sx={{ color: "#2b6777", fontWeight: 600 }}>
               Time Availability
             </InputLabel>
-            <Box
+            <Select
+              multiple
+              value={timeAvailability}
+              onChange={handleTimeChange}
+              renderValue={(selected) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={`${value}:00`}
+                      sx={{
+                        backgroundColor: "#52ab98",
+                        color: "#ffffff",
+                        fontWeight: 500,
+                      }}
+                    />
+                  ))}
+                </Box>
+              )}
               sx={{
                 mt: 3,
-                px: 2,
-                py: 1.5,
-                border: "1px solid #2b6777",
-                borderRadius: "4px",
-                minHeight: "72px",
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 1,
-                alignItems: "flex-start",
-                backgroundColor: "#fff",
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#2b6777' },
+                  '&:hover fieldset': { borderColor: '#52ab98' },
+                  '&.Mui-focused fieldset': { borderColor: '#2b6777' },
+                },
               }}
             >
-              {timeAvailability.map((hour) => (
-                <Chip
-                  key={hour}
-                  label={`${hour}:00`}
-                  sx={{
-                    backgroundColor: "#52ab98",
-                    color: "#ffffff",
-                    fontWeight: 500,
-                  }}
-                />
-              ))}
-            </Box>
-          </FormControl>
-
-          {/* Hidden Select to Keep Time Selection Functional */}
-          <Box sx={{ display: "none" }}>
-            <select multiple value={timeAvailability} onChange={handleTimeChange}>
               {timeOptions.map((hour) => (
-                <option key={hour} value={hour}>
-                  {hour}
-                </option>
+                <MenuItem key={hour} value={hour}>
+                  {hour}:00
+                </MenuItem>
               ))}
-            </select>
-          </Box>
+            </Select>
+          </FormControl>
 
           {/* Email Field */}
           <TextField

@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Grid, Typography, Card, CardContent, Box, Paper, LinearProgress } from '@mui/material';
 
 const ProfileReviews = ({ fetchProfileReviews }) => {
-  // State for storing reviews and any message (e.g., error messages)
   const [reviews, setReviews] = useState([]);
   const [message, setMessage] = useState("");
 
@@ -17,7 +16,6 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
     }
   }, [fetchProfileReviews]);
 
-  // Calculate the average rating using useMemo for performance
   const averageRating = useMemo(() => {
     const validRatings = reviews
       .map((review) => parseFloat(review.rating))
@@ -31,19 +29,19 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
 
   return (
     <Box sx={{ maxWidth: 900, margin: 'auto', p: 4 }}>
-      <Paper sx={{ p: 4, backgroundColor: '#ffffff', borderRadius: 3, boxShadow: 4 }}>
+      <Paper sx={{ p: 4, backgroundColor: '#c8d8e4', borderRadius: 3, boxShadow: 4 }}>
         <Typography
           variant="h4"
           align="center"
-          sx={{ mb: 3, fontWeight: 'bold', color: '#222' }}
+          sx={{ mb: 3, fontWeight: 'bold', color: '#2b6777' }}
         >
           Profile Reviews
         </Typography>
 
         {reviews.length > 0 && (
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Card sx={{ p: 3, mb: 4 }}>
-              <Typography variant="h5" sx={{ mb: 1 }}>
+            <Card sx={{ p: 3, mb: 4, border: '1px solid #c8d8e4', borderRadius: 3, backgroundColor: '#ffffff' }}>
+              <Typography variant="h5" sx={{ mb: 1, color: '#2b6777' }}>
                 Average Rating For This Profile: {averageRating} ★
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -53,12 +51,15 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
                   sx={{
                     height: 10,
                     borderRadius: 5,
-                    backgroundColor: '#ddd',
+                    backgroundColor: '#f2f2f2',
                     flexGrow: 1,
                     mr: 2,
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: '#52ab98'
+                    }
                   }}
                 />
-                <Typography variant="body2">{averageRating} / 5</Typography>
+                <Typography variant="body2" sx={{ color: '#2b6777' }}>{averageRating} / 5</Typography>
               </Box>
             </Card>
           </Box>
@@ -81,12 +82,12 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
         <Grid container spacing={3}>
           {reviews.map((review) => (
             <Grid item xs={12} key={review.review_id}>
-              <Card sx={{ p: 3, mb: 2, boxShadow: 2, borderRadius: 2 }}>
+              <Card sx={{ p: 3, mb: 2, boxShadow: 3, borderRadius: 3, border: '1px solid #c8d8e4', backgroundColor: '#ffffff', transition: '0.3s', '&:hover': { boxShadow: 6 } }}>
                 <CardContent>
                   <Typography
                     variant="h5"
                     fontWeight="bold"
-                    sx={{ color: '#333', mb: 1 }}
+                    sx={{ color: '#2b6777', mb: 1 }}
                   >
                     {review.review_title}
                   </Typography>
@@ -98,8 +99,7 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
                   </Typography>
                   <Typography
                     variant="subtitle2"
-                    color="primary"
-                    sx={{ mt: 2, fontWeight: 'bold', fontSize: '16px' }}
+                    sx={{ mt: 2, fontWeight: 'bold', fontSize: '16px', color: '#52ab98' }}
                   >
                     Rating: {review.rating ? `${review.rating}` : 'No rating provided'}
                   </Typography>
@@ -132,7 +132,7 @@ const ProfileReviews = ({ fetchProfileReviews }) => {
                       })}
                     </Typography>
                   )}
-                  <Typography variant="subtitle2" sx={{ color: '#666', fontWeight: 'bold', mt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ color: '#2b6777', fontWeight: 'bold', mt: 2 }}>
                     Written by: {review.reviewer_username ? review.reviewer_username : 'Anonymous'}
                   </Typography>
                 </CardContent>
