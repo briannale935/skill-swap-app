@@ -36,7 +36,7 @@ const StarRatingComponent = ({ value, setValue }) => {
             onChange={(event, newValue) => setValue(newValue)}
             onChangeActive={(event, newHover) => setHover(newHover)}
             size="large"
-        />
+    />
 
         {value !== null && (
           <Box sx={{ ml: 2 }}>
