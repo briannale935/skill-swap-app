@@ -164,14 +164,23 @@ app.put('/api/reviews/:id', reviewAuth, (req, res) => {
 
   db.query(updateSql, [review_title, content, rating, reviewId, req.userId], (err, result) => {
     if (err) return res.status(500).json({ error: err.message });
-    if (result.affectedRows === 0) return res.status(403).json({ error: 'Unauthorized or review not found' })
-    res.json({ message: 'Review updated successfully'});
+    if (result.affectedRows === 0) return res.status(403).json({ error: 'Unauthorized or review not found' });
+
+    // Now fetch the last_updated timestamp
+    const selectSql = `SELECT last_updated FROM reviews WHERE review_id = ?`;
+    db.query(selectSql, [reviewId], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Review updated successfully', last_updated: rows[0].last_updated });
+    });
   });
 });
 
 // DELETE a review
 app.delete('/api/reviews/:id', reviewAuth, (req, res) => {
-  const reviewId = req.params.id;
+  // Force conversion to a number (assuming your review_id is a number in the DB)
+  const reviewId = parseInt(req.params.id, 10);
+  // Also convert the reviewer id if needed
+  const reviewerId = parseInt(req.userId, 10);
 
   const deleteSql = `DELETE FROM reviews WHERE review_id = ? AND reviewer_id = ?`
   db.query(deleteSql, [reviewId, req.userId], (err, result) => {
