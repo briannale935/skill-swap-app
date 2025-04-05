@@ -7,8 +7,8 @@ import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import response from 'express';
 import { ReviewsRounded } from '@mui/icons-material';
-
-
+import multer from 'multer';
+import fs from 'fs';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +18,38 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 5000;
 const db = mysql.createConnection(config);
+
+// Ensure uploads folder exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Only JPEG and PNG files allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
+// Serve uploaded images statically
+app.use('/uploads', express.static(uploadDir));
+
 
 
 db.connect((err) => {
@@ -318,29 +350,58 @@ router.get('/api/posts', (req, res) => {
 ///
 // Update user profile
 app.post("/api/users/update", (req, res) => {
-  const { firebase_uid, name, skill, location, time_availability, years_of_experience, email, profile_picture, portfolio_link } = req.body;
-   if (!firebase_uid) {
+  const {
+    firebase_uid,
+    name,
+    skill,
+    location,
+    time_availability,
+    years_of_experience,
+    email,
+    profile_picture,
+    portfolio_link
+  } = req.body;
+
+  console.log("🔥 UPDATE REQUEST RECEIVED:");
+  console.log("Profile picture path:", profile_picture); // <--- SEE IF THIS IS CORRECT
+
+  if (!firebase_uid) {
     return res.status(400).json({ error: "User not logged in" });
   }
-   let connection = mysql.createConnection(config);
-   const sql = `
+
+  const sql = `
     UPDATE users
     SET name = ?, skill = ?, location = ?, time_availability = ?, years_of_experience = ?, email = ?, profile_picture = ?, portfolio_link = ?
     WHERE firebase_uid = ?
   `;
-   const values = [name, skill, location, time_availability, years_of_experience, email, profile_picture, portfolio_link, firebase_uid];
-   connection.query(sql, values, (error, results) => {
+
+  const values = [
+    name,
+    skill,
+    location,
+    time_availability,
+    years_of_experience,
+    email,
+    profile_picture,
+    portfolio_link,
+    firebase_uid
+  ];
+
+  db.query(sql, values, (error, results) => {
     if (error) {
-      console.error("Database query error:", error);
+      console.error("DB ERROR:", error);
       return res.status(500).json({ error: error.message });
     }
-     if (results.affectedRows === 0) {
+
+    if (results.affectedRows === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-     res.json({ message: "Profile updated successfully!" });
+
+    console.log("Profile updated successfully.");
+    res.json({ message: "Profile updated successfully!" });
   });
-   connection.end();
 });
+
 
 
 // Get user profile
@@ -357,7 +418,7 @@ let connection = mysql.createConnection(config);
 
 
 const sql = `
-  SELECT name, skill, location, time_availability, years_of_experience, profile_picture, portfolio_link
+  SELECT name, skill, location, time_availability, years_of_experience, profile_picture, portfolio_link, email
   FROM users
   WHERE firebase_uid = ?
 `;
@@ -380,6 +441,17 @@ connection.query(sql, [firebase_uid], (error, results) => {
 
 
 connection.end();
+});
+
+//profile picture 
+app.post('/api/users/upload-profile-picture', upload.single('profilePicture'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // Return just the relative path to store in DB
+  const imagePath = `/uploads/${req.file.filename}`;
+  res.json({ imagePath });
 });
 
 
@@ -831,72 +903,3 @@ app.use(router);
 app.listen(port, () => console.log(`Listening on port ${port}`));
 
 
-// const createTables = `
-//   -- Skill swap requests table
-//   CREATE TABLE IF NOT EXISTS skill_swap_requests (
-//     id VARCHAR(36) PRIMARY KEY,
-//     sender_name VARCHAR(255) NOT NULL,
-//     recipient_name VARCHAR(255) NOT NULL,
-//     sender_skill VARCHAR(255) NOT NULL,
-//     requested_skill VARCHAR(255) NOT NULL,
-//     time_availability VARCHAR(255) NOT NULL,
-//     status ENUM('pending', 'accepted', 'declined', 'withdrawn') NOT NULL DEFAULT 'pending',
-//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//   );
-
-//   -- Successful matches table
-//   CREATE TABLE IF NOT EXISTS successful_matches (
-//     id VARCHAR(36) PRIMARY KEY,
-//     name VARCHAR(255) NOT NULL,
-//     skill VARCHAR(255) NOT NULL,
-//     location VARCHAR(255) NOT NULL,
-//     time_availability VARCHAR(255) NOT NULL,
-//     years_of_experience INT NOT NULL,
-//     email VARCHAR(255) NOT NULL,
-//     sessions_completed INT DEFAULT 0,
-//     status VARCHAR(50) DEFAULT 'active',
-//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//   );
-
-//   -- Users table (if not exists)
-//   CREATE TABLE IF NOT EXISTS users (
-//     id INT AUTO_INCREMENT PRIMARY KEY,
-//     name VARCHAR(255) NOT NULL,
-//     location VARCHAR(255),
-//     skills JSON,
-//     seeking JSON,
-//     availability VARCHAR(255),
-//     email VARCHAR(255) UNIQUE NOT NULL
-//   );
-// `;
-
-// // Insert mock data
-// const insertMockData = `
-//   -- Insert pending invites
-//   INSERT INTO skill_swap_requests (id, sender_name, sender_skill, requested_skill, time_availability, status, created_at)
-//   VALUES 
-//     ('inv1', 'Alice Johnson', 'Python Programming', 'Spanish Language', 'Weekends', 'pending', '2024-03-15 10:00:00'),
-//     ('inv2', 'Bob Smith', 'Guitar', 'Digital Marketing', 'Weekday Evenings', 'pending', '2024-03-14 15:30:00');
-
-//   -- Insert sent requests
-//   INSERT INTO skill_swap_requests (id, sender_name, recipient_name, sender_skill, requested_skill, time_availability, status, created_at)
-//   VALUES 
-//     ('req1', 'Current User', 'Carol White', 'JavaScript', 'Photography', 'Monday/Wednesday Evenings', 'pending', '2024-03-13 09:15:00'),
-//     ('req2', 'Current User', 'David Brown', 'Yoga', 'Data Analysis', 'Tuesday/Thursday Mornings', 'pending', '2024-03-12 14:45:00');
-
-//   -- Insert successful matches
-//   INSERT INTO successful_matches (id, name, skill, location, time_availability, years_of_experience, email, sessions_completed, status, created_at)
-//   VALUES 
-//     ('match1', 'Eva Martinez', 'French Language', 'Online', 'Weekends', 5, 'eva.martinez@example.com', 3, 'active', '2024-03-10 08:00:00'),
-//     ('match2', 'Frank Wilson', 'Web Design', 'Online', 'Weekday Evenings', 3, 'frank.wilson@example.com', 2, 'active', '2024-03-09 16:20:00'),
-//     ('match3', 'Tom Brown', 'Chinese Language', 'New York', 'Monday/Wednesday/Friday mornings', 8, 'tom.brown@example.com', 12, 'active', NOW()),
-//     ('match4', 'Maria Garcia', 'Marketing', 'Miami', 'Weekday afternoons', 6, 'maria.garcia@example.com', 8, 'active', NOW()),
-//     ('match5', 'James Wilson', 'Business Strategy', 'Chicago', 'Flexible hours', 10, 'james.wilson@example.com', 16, 'active', NOW());
-
-//   -- Insert mock users for search
-//   INSERT INTO users (name, location, skills, seeking, availability, email)
-//   VALUES 
-//     ('John Doe', 'New York', '["JavaScript", "React", "Node.js"]', '["Python", "Data Analysis"]', 'Weekday evenings', 'john.doe@example.com'),
-//     ('Jane Smith', 'San Francisco', '["Python", "Machine Learning", "Data Science"]', '["Web Development", "UI/UX Design"]', 'Weekends', 'jane.smith@example.com'),
-//     ('Mike Johnson', 'Chicago', '["Guitar", "Piano", "Music Theory"]', '["Spanish", "French"]', 'Flexible', 'mike.johnson@example.com');
-// `;

@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from "react";
 import {
-  Container,
-  TextField,
-  Button,
-  Typography,
-  Avatar,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  Chip,
-  Paper,
-  Box,
+  Container, TextField, Button, Typography, Avatar,
+  Select, MenuItem, InputLabel, FormControl, Chip, Paper, Box
 } from "@mui/material";
-import { auth } from "../../firebase"; // Firebase authentication import
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
+
+const serverURL = ""; 
 
 function Profile() {
   const [name, setName] = useState("");
@@ -29,38 +20,31 @@ function Profile() {
   const [profilePicturePreview, setProfilePicturePreview] = useState("");
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
-  const storage = getStorage();
 
   useEffect(() => {
     const user = auth.currentUser;
     if (user) {
       setEmail(user.email);
+      fetch(`/api/users/profile?firebase_uid=${user.uid}`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("📥 Loaded profile:", data);
+          setName(data.name || "");
+          setSkill(data.skill || "");
+          setLocation(data.location || "");
+          setTimeAvailability(
+            data.time_availability
+              ? data.time_availability.split(",").map(Number).filter((t) => !isNaN(t))
+              : []
+          );
+          setYearsOfExperience(data.years_of_experience || "");
+          setPortfolioLink(data.portfolio_link || "");
 
-      const fetchProfile = async () => {
-        try {
-          const response = await fetch(`/api/users/profile?firebase_uid=${user.uid}`);
-          if (response.ok) {
-            const data = await response.json();
-            setName(data.name || "");
-            setSkill(data.skill || "");
-            setLocation(data.location || "");
-            setTimeAvailability(
-              data.time_availability
-                ? data.time_availability.split(",").map((t) => Number(t.trim())).filter((t) => !isNaN(t))
-                : []
-            );
-            setYearsOfExperience(data.years_of_experience || "");
-            setPortfolioLink(data.portfolio_link || "");
-            setProfilePicturePreview(data.profile_picture || "");
-          } else {
-            setMessage("Error fetching profile data.");
+          if (data.profile_picture) {
+            setProfilePicturePreview(data.profile_picture);
           }
-        } catch (error) {
-          setMessage("Error fetching profile data.");
-        }
-      };
-
-      fetchProfile();
+        })
+        .catch(() => setMessage("Error fetching profile data."));
     }
   }, []);
 
@@ -69,84 +53,80 @@ function Profile() {
     const firebase_uid = user ? user.uid : "";
     let profilePictureURL = profilePicturePreview;
 
-    if (profilePicture) {
-      const imageRef = ref(storage, `profile_pictures/${firebase_uid}`);
-      try {
-        await uploadBytes(imageRef, profilePicture);
-        profilePictureURL = await getDownloadURL(imageRef);
-      } catch (error) {
-        console.error("Error uploading profile picture:", error);
-        setMessage("Error uploading profile picture.");
-        return;
-      }
-    }
-
-    const profileData = {
-      firebase_uid,
-      name,
-      skill,
-      location,
-      time_availability: timeAvailability.join(","),
-      years_of_experience: parseInt(yearsOfExperience) || null,
-      email,
-      portfolio_link: portfolioLink,
-      profile_picture: profilePictureURL,
-    };
-
     try {
+      if (profilePicture) {
+        const formData = new FormData();
+        formData.append("profilePicture", profilePicture);
+
+        const uploadRes = await fetch("/api/users/upload-profile-picture", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadData.imagePath) {
+          setMessage("Image upload failed.");
+          return;
+        }
+
+        profilePictureURL = uploadData.imagePath;
+        console.log("Image uploaded:", profilePictureURL);
+      } else if (profilePicturePreview.startsWith("blob:")) {
+        // blob = just preview, no need to save
+        profilePictureURL = "";
+      }
+
+      const profileData = {
+        firebase_uid,
+        name,
+        skill,
+        location,
+        time_availability: timeAvailability.join(","),
+        years_of_experience: parseInt(yearsOfExperience) || null,
+        email,
+        portfolio_link: portfolioLink,
+        profile_picture: profilePictureURL,
+      };
+
+      console.log("📤 Sending to backend:", profileData);
+
       const response = await fetch("/api/users/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profileData),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
         setMessage("Profile updated successfully!");
+        setProfilePicturePreview(profilePictureURL);
       } else {
-        const data = await response.json();
-        setMessage(data.error || "An error occurred while updating your profile.");
+        setMessage(result.error || "Error updating profile.");
       }
     } catch (err) {
-      console.error("Error updating profile:", err);
-      setMessage("An unexpected error occurred. Please try again later.");
+      console.error(err);
+      setMessage("Unexpected error.");
     }
   };
 
   const handleTimeChange = (event) => {
-    const value = event.target.value;
-    setTimeAvailability(value.map(Number)); // Ensure numbers only
+    setTimeAvailability(event.target.value.map(Number));
   };
 
-  const timeOptions = Array.from({ length: 24 }, (_, i) => i); // Generates 0 - 23
+  const timeOptions = Array.from({ length: 24 }, (_, i) => i);
 
   return (
     <Box sx={{ backgroundColor: "#c8d8e4", minHeight: "100vh", py: 5 }}>
       <Container maxWidth="sm">
-        <Paper
-          elevation={4}
-          sx={{
-            padding: 4,
-            backgroundColor: "#ffffff",
-            borderRadius: "16px",
-            boxShadow: "0 6px 24px rgba(0, 0, 0, 0.1)",
-          }}
-        >
-          <Typography
-            variant="h4"
-            align="center"
-            gutterBottom
-            sx={{ fontWeight: 600, color: "#2b6777" }}
-          >
+        <Paper elevation={4} sx={{ padding: 4, borderRadius: "16px" }}>
+          <Typography variant="h4" align="center" sx={{ fontWeight: 600 }}>
             Update Your Profile
           </Typography>
 
           {message && (
-            <Typography
-              variant="body2"
-              align="center"
-              color={message.includes("successfully") ? "green" : "error"}
-              gutterBottom
-            >
+            <Typography align="center" color={message.includes("success") ? "green" : "error"}>
               {message}
             </Typography>
           )}
@@ -154,32 +134,28 @@ function Profile() {
           <Box textAlign="center" mb={3}>
             <Avatar
               src={profilePicturePreview}
-              alt="Profile Picture"
+              alt="Profile"
               sx={{ width: 100, height: 100, mx: "auto", mb: 1 }}
             />
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => setProfilePicture(e.target.files[0])}
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setProfilePicture(file);
+                  setProfilePicturePreview(URL.createObjectURL(file));
+                }
+              }}
             />
           </Box>
 
-          {/* Input Fields */}
           {[ 
             { label: "Name", value: name, setter: setName },
             { label: "Skill", value: skill, setter: setSkill },
             { label: "Location", value: location, setter: setLocation },
-            {
-              label: "Years of Experience",
-              value: yearsOfExperience,
-              setter: setYearsOfExperience,
-              type: "number",
-            },
-            {
-              label: "Portfolio Link",
-              value: portfolioLink,
-              setter: setPortfolioLink,
-            },
+            { label: "Years of Experience", value: yearsOfExperience, setter: setYearsOfExperience, type: "number" },
+            { label: "Portfolio Link", value: portfolioLink, setter: setPortfolioLink },
           ].map(({ label, value, setter, type = "text" }) => (
             <TextField
               key={label}
@@ -189,21 +165,11 @@ function Profile() {
               value={value}
               type={type}
               onChange={(e) => setter(e.target.value)}
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  "& fieldset": { borderColor: "#2b6777" },
-                  "&:hover fieldset": { borderColor: "#52ab98" },
-                  "&.Mui-focused fieldset": { borderColor: "#2b6777" },
-                },
-              }}
             />
           ))}
 
-          {/* Time Availability */}
           <FormControl fullWidth margin="normal">
-            <InputLabel shrink sx={{ color: "#2b6777", fontWeight: 600 }}>
-              Time Availability
-            </InputLabel>
+            <InputLabel shrink>Time Availability</InputLabel>
             <Select
               multiple
               value={timeAvailability}
@@ -211,26 +177,10 @@ function Profile() {
               renderValue={(selected) => (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {selected.map((value) => (
-                    <Chip
-                      key={value}
-                      label={`${value}:00`}
-                      sx={{
-                        backgroundColor: "#52ab98",
-                        color: "#ffffff",
-                        fontWeight: 500,
-                      }}
-                    />
+                    <Chip key={value} label={`${value}:00`} />
                   ))}
                 </Box>
               )}
-              sx={{
-                mt: 3,
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': { borderColor: '#2b6777' },
-                  '&:hover fieldset': { borderColor: '#52ab98' },
-                  '&.Mui-focused fieldset': { borderColor: '#2b6777' },
-                },
-              }}
             >
               {timeOptions.map((hour) => (
                 <MenuItem key={hour} value={hour}>
@@ -240,37 +190,13 @@ function Profile() {
             </Select>
           </FormControl>
 
-          {/* Email Field */}
-          <TextField
-            label="Email"
-            fullWidth
-            margin="normal"
-            value={email}
-            disabled
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                "& fieldset": { borderColor: "#2b6777" },
-              },
-            }}
-          />
+          <TextField label="Email" fullWidth value={email} disabled margin="normal" />
 
-          {/* Submit Button */}
           <Button
             variant="contained"
             fullWidth
             onClick={handleProfileSubmit}
-            sx={{
-              mt: 3,
-              backgroundColor: "#2b6777",
-              color: "#ffffff",
-              fontWeight: 600,
-              borderRadius: "10px",
-              padding: "12px",
-              fontSize: "16px",
-              "&:hover": {
-                backgroundColor: "#52ab98",
-              },
-            }}
+            sx={{ mt: 3, backgroundColor: "#2b6777", fontWeight: 600 }}
           >
             Save Profile
           </Button>

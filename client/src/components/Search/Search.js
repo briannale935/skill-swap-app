@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Avatar
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import ProfileReviews from "../Reviews/ProfileReviews";
@@ -242,14 +243,19 @@ function Search() {
                     justifyContent: "space-between",
                   }}
                 >
-                  <CardMedia
-                    component="img"
-                    height="150"
-                    image={user.profile_picture || "/blank-profile.png"}
-                    alt={user.name}
-                    onClick={() => handleSelectUser(user.id)}
-                    sx={{ cursor: "pointer", objectFit: "cover" }}
-                  />
+                  <Box textAlign="center" pt={2}>
+                    <Avatar
+                      src={user.profile_picture || "/blank-profile.png"}
+                      alt={user.name}
+                      sx={{
+                        width: 100,
+                        height: 100,
+                        mx: "auto",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleSelectUser(user.id)}
+                    />
+                  </Box>
                   <CardContent sx={{ flexGrow: 1 }}>
                     <Typography variant="h6" sx={{ color: "#2b6777" }}>{user.name}</Typography>
                     <Typography><strong>Skill:</strong> {user.skill}</Typography>
