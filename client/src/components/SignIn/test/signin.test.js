@@ -1,85 +1,150 @@
+// import React from "react";
 // import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-// import SignIn from "../SignIn";
-// import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "../../firebase";
+// import SignIn from "../index";
+// import { useNavigate } from "react-router-dom";
+// import {
+//   auth,
+//   createUserWithEmailAndPassword,
+//   signInWithEmailAndPassword,
+// } from "../../../firebase";
 
-// // Mock global fetch to prevent "fetch is not defined" errors
-// global.fetch = jest.fn((url) => {
-//   if (url.includes("/api/register")) {
-//     return Promise.resolve({
-//       json: () => Promise.resolve({ message: "User registered successfully!", userId: "mockUserId" }),
-//     });
-//   } else if (url.includes("/api/user/id")) {
-//     return Promise.resolve({
-//       json: () => Promise.resolve({ userId: "mockUserId" }),
-//     });
-//   }
-//   return Promise.reject(new Error("Unknown API endpoint"));
-// });
-
-// // Mock Firebase authentication methods
-// jest.mock("../../firebase", () => ({
-//   auth: { currentUser: { uid: "testUser123", email: "test@example.com" } },
-//   signInWithEmailAndPassword: jest.fn(() =>
-//     Promise.resolve({ user: { uid: "testUser123", email: "test@example.com" } })
-//   ),
-//   createUserWithEmailAndPassword: jest.fn(() =>
-//     Promise.resolve({ user: { uid: "testUser456", email: "newuser@example.com" } })
-//   ),
+// jest.mock("react-router-dom", () => ({
+//   ...jest.requireActual("react-router-dom"),
+//   useNavigate: jest.fn(),
 // }));
 
-// describe("SignIn Component", () => {
-//   test("renders email and password input fields", () => {
-//     render(<SignIn onLogin={jest.fn()} />);
+// jest.mock("../../../firebase", () => ({
+//   auth: {},
+//   createUserWithEmailAndPassword: jest.fn(),
+//   signInWithEmailAndPassword: jest.fn(),
+// }));
 
-//     expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
-//     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
-//     expect(screen.getByRole("button", { name: /Sign In/i })).toBeInTheDocument();
+// describe("SignIn component", () => {
+//   const navigateMock = jest.fn();
+//   const onLoginMock = jest.fn();
+
+//   beforeEach(() => {
+//     useNavigate.mockReturnValue(navigateMock);
+//     localStorage.clear();
+//     jest.clearAllMocks();
 //   });
 
-//   test("updates email and password fields correctly", () => {
-//     render(<SignIn onLogin={jest.fn()} />);
-
-//     const emailInput = screen.getByLabelText(/Email/i);
-//     const passwordInput = screen.getByLabelText(/Password/i);
-
-//     fireEvent.change(emailInput, { target: { value: "test@example.com" } });
-//     fireEvent.change(passwordInput, { target: { value: "password123" } });
-
-//     expect(emailInput.value).toBe("test@example.com");
-//     expect(passwordInput.value).toBe("password123");
+//   it("renders input fields and buttons", () => {
+//     render(<SignIn onLogin={onLoginMock} />);
+//     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+//     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+//     expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+//     expect(screen.getByRole("button", { name: /new user\? sign up/i })).toBeInTheDocument();
 //   });
 
-//   test("registers a new user successfully", async () => {
-//     const mockOnLogin = jest.fn();
-//     render(<SignIn onLogin={mockOnLogin} />);
+//   it("toggles between sign in and sign up modes", () => {
+//     render(<SignIn onLogin={onLoginMock} />);
+//     fireEvent.click(screen.getByText(/new user\? sign up/i));
+//     expect(screen.getByRole("button", { name: /sign up/i })).toBeInTheDocument();
+//     fireEvent.click(screen.getByText(/already have an account\? sign in/i));
+//     expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+//   });
 
-//     const toggleButton = screen.getByRole("button", { name: /New user\? Sign Up/i });
-//     fireEvent.click(toggleButton);
+//   it("handles rapid toggle between sign in and sign up", () => {
+//     render(<SignIn onLogin={onLoginMock} />);
+//     fireEvent.click(screen.getByText(/new user\? sign up/i));
+//     fireEvent.click(screen.getByText(/already have an account\? sign in/i));
+//     fireEvent.click(screen.getByText(/new user\? sign up/i));
+//     expect(screen.getByRole("button", { name: /sign up/i })).toBeInTheDocument();
+//   });
 
-//     const emailInput = screen.getByLabelText(/Email/i);
-//     const passwordInput = screen.getByLabelText(/Password/i);
-//     const signUpButton = screen.getByRole("button", { name: /Sign Up/i });
+//   it("clears error message when retrying after failed sign in", async () => {
+//     signInWithEmailAndPassword.mockRejectedValueOnce(new Error("Invalid login"));
+//     render(<SignIn onLogin={onLoginMock} />);
 
-//     fireEvent.change(emailInput, { target: { value: "newuser@example.com" } });
-//     fireEvent.change(passwordInput, { target: { value: "newpassword" } });
+//     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "user@example.com" } });
+//     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "badpass" } });
+//     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-//     fireEvent.click(signUpButton);
+//     await waitFor(() => expect(screen.getByText("Invalid login")).toBeInTheDocument());
 
-//     // Wait for Firebase user creation
-//     await waitFor(() => expect(createUserWithEmailAndPassword).toHaveBeenCalledTimes(1));
-//     expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(auth, "newuser@example.com", "newpassword");
+//     signInWithEmailAndPassword.mockResolvedValueOnce({ user: { uid: "456", email: "user@example.com" } });
+//     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ userId: 99 }) });
 
-//     // Ensure API call to register user is made
-//     await waitFor(() => expect(fetch).toHaveBeenCalledWith(
-//       "/api/register",
-//       expect.objectContaining({
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({ firebase_uid: "testUser456", email: "newuser@example.com" }),
-//       })
-//     ));
+//     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-//     // Ensure onLogin callback was triggered
-//     await waitFor(() => expect(mockOnLogin).toHaveBeenCalledTimes(1));
+//     await waitFor(() => {
+//       expect(screen.queryByText("Invalid login")).not.toBeInTheDocument();
+//       expect(onLoginMock).toHaveBeenCalled();
+//     });
+//   });
+
+//   it("signs in an existing user successfully", async () => {
+//     const mockUser = { uid: "123", email: "test@example.com" };
+//     signInWithEmailAndPassword.mockResolvedValue({ user: mockUser });
+//     global.fetch = jest.fn().mockResolvedValue({
+//       ok: true,
+//       json: async () => ({ userId: 42 }),
+//     });
+
+//     render(<SignIn onLogin={onLoginMock} />);
+//     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "test@example.com" } });
+//     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password" } });
+//     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+//     await waitFor(() => {
+//       expect(signInWithEmailAndPassword).toHaveBeenCalledWith(auth, "test@example.com", "password");
+//       expect(localStorage.getItem("currentUser")).toContain("test@example.com");
+//       expect(onLoginMock).toHaveBeenCalled();
+//       expect(navigateMock).toHaveBeenCalledWith("/");
+//     });
+//   });
+
+//   it("displays error message on failed sign in", async () => {
+//     signInWithEmailAndPassword.mockRejectedValue(new Error("Invalid login"));
+
+//     render(<SignIn onLogin={onLoginMock} />);
+//     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "wrong@example.com" } });
+//     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "wrongpass" } });
+//     fireEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+//     await waitFor(() => {
+//       expect(screen.getByText("Invalid login")).toBeInTheDocument();
+//     });
+//   });
+
+//   it("signs up a new user successfully", async () => {
+//     const mockUser = { uid: "999", email: "newuser@example.com" };
+//     createUserWithEmailAndPassword.mockResolvedValue({ user: mockUser });
+
+//     global.fetch = jest
+//       .fn()
+//       .mockResolvedValueOnce({ ok: true }) // for /api/register
+//       .mockResolvedValueOnce({
+//         ok: true,
+//         json: async () => ({ userId: 88 }),
+//       });
+
+//     render(<SignIn onLogin={onLoginMock} />);
+//     fireEvent.click(screen.getByText(/new user\? sign up/i));
+//     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "newuser@example.com" } });
+//     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "newpass123" } });
+//     fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
+
+//     await waitFor(() => {
+//       expect(createUserWithEmailAndPassword).toHaveBeenCalledWith(auth, "newuser@example.com", "newpass123");
+//       expect(localStorage.getItem("currentUser")).toContain("newuser@example.com");
+//       expect(onLoginMock).toHaveBeenCalled();
+//       expect(navigateMock).toHaveBeenCalledWith("/");
+//     });
+//   });
+
+//   it("displays error on failed sign up", async () => {
+//     createUserWithEmailAndPassword.mockRejectedValue(new Error("Signup failed"));
+
+//     render(<SignIn onLogin={onLoginMock} />);
+//     fireEvent.click(screen.getByText(/new user\? sign up/i));
+//     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: "failuser@example.com" } });
+//     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "failpass" } });
+//     fireEvent.click(screen.getByRole("button", { name: /sign up/i }));
+
+//     await waitFor(() => {
+//       expect(screen.getByText("Signup failed")).toBeInTheDocument();
+//     });
 //   });
 // });
