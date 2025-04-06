@@ -1,7 +1,7 @@
 import { AppBar, Toolbar, Button, Box } from '@mui/material';
 import { Link } from 'react-router-dom';
 
-function Navbar() {
+function Navbar({ onLogout }) {
   return (
     <AppBar position="static" sx={{ bgcolor: '#52ab98' }}>
       <Toolbar>
@@ -20,6 +20,9 @@ function Navbar() {
         <Box sx={{ flexGrow: 1 }} />
         <Button color="inherit" component={Link} to="/Profile">
           Profile
+        </Button>
+        <Button color="inherit" onClick={onLogout}>
+          Logout
         </Button>
       </Toolbar>
     </AppBar>

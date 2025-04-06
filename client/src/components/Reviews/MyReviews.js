@@ -1,15 +1,9 @@
-// Updated MyReviews.js with sleek color theme and refined UI
-
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   Typography, Button, Box, Card, CardContent,
-  Paper, Grid, IconButton, Dialog, DialogTitle,
+  Paper, Grid, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Rating
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
 
 const StarRatingComponent = ({ value, setValue }) => {
   const [hover, setHover] = useState(-1);
@@ -36,8 +30,6 @@ const StarRatingComponent = ({ value, setValue }) => {
         onChange={(event, newValue) => setValue(newValue)}
         onChangeActive={(event, newHover) => setHover(newHover)}
         size="large"
-        icon={<StarIcon sx={{ color: "#52ab98" }} />}
-        emptyIcon={<StarBorderIcon sx={{ color: "#c8d8e4" }} />}
       />
       {value !== null && (
         <Box sx={{ ml: 2 }}>{labels[hover !== -1 ? hover : value]}</Box>
@@ -56,11 +48,6 @@ const MyReviews = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState(null);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-
-  const showSnackbar = (message, severity = 'success') => {
-    setNotification({ open: true, message, severity });
-    setTimeout(() => setNotification({ open: false, message: '', severity: 'success' }), 3000);
-  };
 
   const fetchMyReviews = async () => {
     setLoading(true);
@@ -86,21 +73,31 @@ const MyReviews = () => {
 
   const handleEditClick = (review) => {
     setSelectedReview(review);
-    setEditFormData({ title: review.review_title, text: review.content, rating: review.rating });
+    setEditFormData({
+      title: review.review_title || '',
+      text: typeof review.content === 'string' ? review.content : '',
+      rating: review.rating || 0,
+    });
     setEditDialogOpen(true);
   };
-  const handleEditClose = () => { setEditDialogOpen(false); setSelectedReview(null); };
+
+  const handleEditClose = () => {
+    setEditDialogOpen(false);
+    setSelectedReview(null);
+  };
+
   const handleEditFormChange = (e) => {
     const { name, value } = e.target;
     setEditFormData(prev => ({ ...prev, [name]: value }));
   };
+
   const handleRatingChange = (newValue) => {
     setEditFormData(prev => ({ ...prev, rating: newValue }));
   };
 
   const handleUpdateReview = async (id, updatedReview) => {
-    if (!updatedReview || !updatedReview.title || !updatedReview.text || updatedReview.rating == null) {
-      setNotification({ open: true, message: "Please fill out all fields.", severity: 'error' });
+    if (!updatedReview.title || !updatedReview.text || updatedReview.rating == null) {
+      setNotification({ show: true, message: "Please fill out all fields.", type: 'error' });
       return;
     }
     try {
@@ -117,26 +114,36 @@ const MyReviews = () => {
           rating: updatedReview.rating
         }),
       });
+
       const responseData = await response.json();
       if (!response.ok) throw new Error('Failed to update review');
 
-      setReviews(prev => prev.map(r =>
-        r.review_id === id ? { ...r, ...updatedReview, last_updated: responseData.last_updated } : r
-      ));
-      setNotification({ open: true, message: "Review updated successfully!", severity: "success" });
+      setReviews(prev =>
+        prev.map(r =>
+          r.review_id === id
+            ? {
+                ...r,
+                review_title: updatedReview.title,
+                content: updatedReview.text,
+                rating: updatedReview.rating,
+                last_updated: responseData.last_updated
+              }
+            : r
+        )
+      );
+
+      setNotification({ show: true, message: "Review updated successfully!", type: "success" });
       setEditDialogOpen(false);
     } catch (err) {
-      setNotification({ open: true, message: err.message || "Error updating review.", severity: "error" });
+      setNotification({ show: true, message: err.message || "Error updating review.", type: "error" });
     }
   };
 
-  const averageRating = useMemo(() => {
-    const validRatings = reviews.map(r => parseFloat(r.rating)).filter(r => !isNaN(r));
-    if (!validRatings.length) return 0;
-    return (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1);
-  }, [reviews]);
+  const handleDeleteClick = (review) => {
+    setReviewToDelete(review);
+    setDeleteDialogOpen(true);
+  };
 
-  const handleDeleteClick = (review) => { setReviewToDelete(review); setDeleteDialogOpen(true); };
   const handleDeleteReview = async (id) => {
     try {
       const storedUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -146,12 +153,18 @@ const MyReviews = () => {
       });
       if (!response.ok) throw new Error('Failed to delete review');
       setReviews(prev => prev.filter(r => r.review_id !== id));
-      setNotification({ open: true, message: "Review deleted successfully!", severity: "success" });
+      setNotification({ show: true, message: "Review deleted successfully!", type: "success" });
       setDeleteDialogOpen(false);
     } catch (err) {
-      setNotification({ open: true, message: err.message || "Error deleting review.", severity: "error" });
+      setNotification({ show: true, message: err.message || "Error deleting review.", type: "error" });
     }
   };
+
+  const averageRating = useMemo(() => {
+    const validRatings = reviews.map(r => parseFloat(r.rating)).filter(r => !isNaN(r));
+    if (!validRatings.length) return 0;
+    return (validRatings.reduce((a, b) => a + b, 0) / validRatings.length).toFixed(1);
+  }, [reviews]);
 
   const formatDate = (dateString) => new Date(dateString).toLocaleString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
@@ -159,7 +172,7 @@ const MyReviews = () => {
 
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto", p: 4 }}>
-      <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: "bold", textAlign: "center", my: 3, color: "#2b6777" }}>
+      <Typography variant="h3" align="center" gutterBottom sx={{ fontWeight: "bold", my: 3, color: "#2b6777" }}>
         My Reviews
       </Typography>
 
@@ -184,41 +197,44 @@ const MyReviews = () => {
       )}
 
       {error && <Paper sx={{ p: 2, mb: 3, bgcolor: '#ffebee' }}><Typography color="error">{error}</Typography></Paper>}
-      {loading ? <Typography align="center">Loading Your Reviews...</Typography> : (
-        reviews.length === 0 ? (
-          <Paper sx={{ p: 4, textAlign: "center" }}>
-            <Typography variant="h6">You haven't written any reviews yet.</Typography>
-          </Paper>
-        ) : (
-          <Grid container spacing={3}>
-            {reviews.map((review) => (
-              <Grid item xs={12} key={review.review_id}>
-                <Card sx={{ p: 2, boxShadow: 3, backgroundColor: "#ffffff", border: "1px solid #c8d8e4", borderRadius: "16px", transition: "0.3s", '&:hover': { boxShadow: 6 } }}>
-                  <CardContent>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-                      <Box>
-                        <Typography variant="h5" sx={{ fontWeight: "bold", color: "#2b6777" }}>{review.review_title}</Typography>
-                      </Box>
-                      <Box>
-                        <IconButton onClick={() => handleEditClick(review)} color="primary"><EditIcon /></IconButton>
-                        <IconButton onClick={() => handleDeleteClick(review)} color="error"><DeleteIcon /></IconButton>
-                      </Box>
+      {loading ? (
+        <Typography align="center">Loading Your Reviews...</Typography>
+      ) : (
+        <Grid container spacing={3}>
+          {reviews.map((review) => (
+            <Grid item xs={12} key={review.review_id}>
+              <Card sx={{ p: 2, boxShadow: 3, backgroundColor: "#ffffff", border: "1px solid #c8d8e4", borderRadius: "16px", transition: "0.3s", '&:hover': { boxShadow: 6 } }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+                    <Typography variant="h5" sx={{ fontWeight: "bold", color: "#2b6777" }}>{review.review_title}</Typography>
+                    <Box>
+                      <Button onClick={() => handleEditClick(review)} color="primary">Edit</Button>
+                      <Button onClick={() => handleDeleteClick(review)} color="error">Delete</Button>
                     </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                      <Rating value={review.rating} readOnly precision={0.5} icon={<StarIcon sx={{ color: "#52ab98" }} />} emptyIcon={<StarBorderIcon sx={{ color: "#c8d8e4" }} />} />
-                      <Typography variant="body2" sx={{ ml: 1 }}>{Number(review.rating)}/5</Typography>
-                    </Box>
-                    <Typography>{typeof review.content === 'object' ? JSON.stringify(review.content) : review.content}</Typography>
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" color="text.secondary">Posted on: {formatDate(review.date_posted)}</Typography>
-                      {review.last_updated && <Typography variant="caption" color="text.secondary">Last Updated: {formatDate(review.last_updated)}</Typography>}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )
+                  </Box>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <Rating value={Number(review.rating)} readOnly precision={0.5} />
+                    <Typography variant="body2" sx={{ ml: 1 }}>{Number(review.rating)}/5</Typography>
+                  </Box>
+                  <Typography sx={{ whiteSpace: 'pre-line' }}>
+                    {typeof review.content === 'string' ? review.content : '[No text review]'}
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="caption" color="text.secondary">Posted on: {formatDate(review.date_posted)}</Typography>
+                    {review.last_updated && (
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+                        Last Updated: {formatDate(review.last_updated)}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Typography variant="subtitle2" sx={{ color: '#666', fontWeight: 'bold', mt: 2 }}>
+                    Written for: {review.recipient_username ? review.recipient_username : 'Anonymous'}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
       )}
 
       {notification.show && (

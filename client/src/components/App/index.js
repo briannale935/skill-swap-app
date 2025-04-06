@@ -14,11 +14,10 @@ import ProfileReviews from '../Reviews/ProfileReviews';
 import Comments from '../Blog/Comments';
 import PostDetails from '../Blog/PostDetails';
 
-
 // Layout for authenticated pages with navbar and background color
-const AppLayout = () => (
+const AppLayout = ({ onLogout }) => (
   <Box sx={{ backgroundColor: '#c8d8e4', minHeight: '100vh' }}>
-    <Navbar />
+    <Navbar onLogout={onLogout} />
     <Routes>
       <Route path="/search" element={<Search />} />
       <Route path="/blog" element={<PostCreation />} />
@@ -34,11 +33,11 @@ const AppLayout = () => (
   </Box>
 );
 
-function MainApp() {
+function MainApp({ onLogout }) {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/*" element={<AppLayout />} />
+      <Route path="/*" element={<AppLayout onLogout={onLogout} />} />
     </Routes>
   );
 }
@@ -46,12 +45,16 @@ function MainApp() {
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+  };
+
   return (
     <Router>
       {!isAuthenticated ? (
         <SignIn onLogin={() => setIsAuthenticated(true)} />
       ) : (
-        <MainApp />
+        <MainApp onLogout={handleLogout} />
       )}
     </Router>
   );
