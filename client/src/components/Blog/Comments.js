@@ -1,83 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Button, TextField, Typography, Divider } from '@mui/material';
 
-const Comments = ({ username, postId, comments, refreshComments }) => {
+const Comments = ({ username, postId }) => {
+  const [comments, setComments] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [content, setContent] = useState('');
+  const [replyTo, setReplyTo] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/getComments/${postId}`)
+      .then((res) => res.json())
+      .then((data) => setComments(data))
+      .catch((err) => console.error('Error fetching comments:', err));
+  }, [postId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const formattedContent = replyTo ? `@${replyTo.id}| ${content}` : content;
+
     try {
-      await callApiAddComment();
+      const response = await fetch('/api/addComment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: username,
+          post_id: postId,
+          content: formattedContent,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to add comment');
+      const updated = await fetch(`/api/getComments/${postId}`).then((res) => res.json());
+      setComments(updated);
       setContent('');
+      setReplyTo(null);
       setShowForm(false);
-      refreshComments(); // Refresh comments after submission
-    } catch (error) {
-      console.error('Error submitting comment:', error);
+    } catch (err) {
+      console.error('Error submitting comment:', err);
     }
   };
 
-  const callApiAddComment = async () => {
-    const url = '/api/addComment';
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: username,
-        post_id: postId,
-        content
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`error! status: ${response.status}`);
+  const parseReply = (comment) => {
+    const match = comment.content.match(/^@(\d+)\|\s(.+)/);
+    if (match) {
+      const parentId = match[1];
+      const replyText = match[2];
+      return { parentId, replyText };
     }
-
-    const body = await response.json();
-    return body;
+    return null;
   };
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={() => setShowForm(!showForm)}
-        sx={{ mb: 2 }}
-      >
+      <Button variant="contained" onClick={() => { setShowForm(!showForm); setReplyTo(null); }}>
         {showForm ? 'Cancel' : 'Comment'}
       </Button>
 
       {showForm && (
         <form onSubmit={handleSubmit}>
           <TextField
-            label="Write your comment..."
-            variant="outlined"
             fullWidth
             multiline
-            rows={4}
+            rows={3}
+            label={replyTo ? `Replying to ${replyTo.name}` : "Write a comment..."}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            sx={{ mb: 2 }}
+            sx={{ mt: 2 }}
           />
-          <Button variant="contained" color="primary" type="submit">
+          <Button type="submit" variant="contained" sx={{ mt: 1 }}>
             Submit
           </Button>
         </form>
       )}
 
-      <Divider sx={{ mt: 2, mb: 2 }} />
+      <Divider sx={{ my: 3 }} />
       <Typography variant="h6">Comments:</Typography>
-      <Box>
-        {comments.map((comment, index) => (
-          <Box key={index} sx={{ mb: 1 }}>
-            <strong>{comment.name || "Unknown"}:</strong> {comment.content}
-          </Box>
-        ))}
-      </Box>
+
+      {comments.map((comment) => {
+        const parsed = parseReply(comment);
+        
+        // Render only main comments and not replies
+        if (!parsed) {
+          return (
+            <Box key={comment.id} sx={{ mb: 2 }}>
+              <Typography variant="body2">
+                <strong>{comment.name}</strong>: {comment.content}
+              </Typography>
+              <Button size="small" onClick={() => { setReplyTo(comment); setShowForm(true); }}>
+                Reply
+              </Button>
+
+              {/* Display replies directly under the corresponding comment */}
+              {comments
+                .filter((reply) => reply.content.startsWith(`@${comment.id}|`))
+                .map((reply) => (
+                  <Box key={reply.id} sx={{ ml: 4, mt: 1 }}>
+                    <Typography variant="body2">
+                      <strong>{reply.name}</strong>: {reply.content.replace(/^@\d+\|\s/, '')}
+                    </Typography>
+                  </Box>
+                ))}
+            </Box>
+          );
+        }
+        
+        return null; // Exclude replies from the main rendering
+      })}
     </Box>
   );
 };
