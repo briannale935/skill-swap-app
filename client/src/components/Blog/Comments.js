@@ -1,84 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Box, Button, TextField, Typography, Divider } from '@mui/material';
-import { getAuth } from "firebase/auth";
 
-
-
-
-const Comments = ({ username, postId, comments: initialComments = [] }) => {
-
-
-  const [comments, setComments] = useState(initialComments);
+const Comments = ({ username, postId, comments, refreshComments }) => {
   const [showForm, setShowForm] = useState(false);
   const [content, setContent] = useState('');
-
-
-
-
-  useEffect(() => {
-    const callApiGetComments = async () => {
-      try {
-        const response = await fetch(`/api/posts/${postId}/comments`); // Updated API endpoint
-
-
-        if (!response.ok) {
-          throw new Error(`error! status: ${response.status}`);
-        }
-
-
-        const body = await response.json();
-        setComments(body);
-        console.log("API Response:", body);
-      } catch (error) {
-        console.error("Error fetching comments:", error);
-      }
-    };
-
-
-    callApiGetComments();
-  }, [postId]);
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-        const addedComment = await callApiAddComment();
-        console.log("callApiAddComment returned: ", addedComment)
-        setComments([...comments, addedComment]);
-        setContent('');
-        setShowForm(false);
+      await callApiAddComment();
+      setContent('');
+      setShowForm(false);
+      refreshComments(); // Refresh comments after submission
     } catch (error) {
-        console.error('Error submitting comment:', error);
+      console.error('Error submitting comment:', error);
     }
   };
-
-
-
 
   const callApiAddComment = async () => {
     const url = '/api/addComment';
- 
+
     const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: username,
-          post_id: postId,
-          content
-        }),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: username,
+        post_id: postId,
+        content
+      }),
     });
- 
+
     if (!response.ok) {
-        throw new Error(`error! status: ${response.status}`);
+      throw new Error(`error! status: ${response.status}`);
     }
- 
+
     const body = await response.json();
-    console.log("Comment added");
     return body;
   };
-
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -90,7 +50,6 @@ const Comments = ({ username, postId, comments: initialComments = [] }) => {
       >
         {showForm ? 'Cancel' : 'Comment'}
       </Button>
-
 
       {showForm && (
         <form onSubmit={handleSubmit}>
@@ -110,7 +69,6 @@ const Comments = ({ username, postId, comments: initialComments = [] }) => {
         </form>
       )}
 
-
       <Divider sx={{ mt: 2, mb: 2 }} />
       <Typography variant="h6">Comments:</Typography>
       <Box>
@@ -123,6 +81,5 @@ const Comments = ({ username, postId, comments: initialComments = [] }) => {
     </Box>
   );
 };
-
 
 export default Comments;

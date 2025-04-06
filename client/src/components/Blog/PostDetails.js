@@ -1,45 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
 import { Box, Typography, Card, CardContent } from '@mui/material';
 import Comments from '../Blog/Comments';
-import {useLocation} from "react-router-dom";
-
-
-
 
 const PostDetails = () => {
   const location = useLocation();
-  const {username} = location.state || {};
+  const { username } = location.state || {};
+  const { postId } = useParams();
 
-
-  const { postId } = useParams(); // Get postId from URL parameters
   const [post, setPost] = useState(null);
-  const [comments, setComments] = useState([]); // Manage comments here
+  const [comments, setComments] = useState([]);
 
+  const fetchComments = useCallback(() => {
+    fetch(`/api/getComments/${postId}`)
+      .then(res => res.json())
+      .then(data => setComments(data))
+      .catch(err => console.error('Error fetching comments:', err));
+  }, [postId]);
 
   useEffect(() => {
-    // Fetch the post details
     fetch(`/api/getPost/${postId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data) {
           setPost(data);
-          // Fetch comments for the post
-          fetch(`/api/getComments/${postId}`) // Fetch comments associated with the post
-            .then(res => res.json())
-            .then(commentsData => setComments(commentsData))
-            .catch(err => console.error('Error fetching comments:', err));
+          fetchComments(); // Initial comment fetch
         } else {
           console.error('No data found for this post.');
         }
       })
       .catch((err) => console.error('Error fetching post:', err));
-  }, [postId]);
+  }, [postId, fetchComments]);
 
-
-  // Show loading text while post is being fetched
-  if (!post) return <Typography>Loading post {postId}...</Typography>
-
+  if (!post) return <Typography>Loading post {postId}...</Typography>;
 
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
@@ -53,13 +46,16 @@ const PostDetails = () => {
         </CardContent>
       </Card>
 
-
       <Box sx={{ mt: 4 }}>
-        <Comments username={username} postId={postId} comments={comments} /> {/* Pass postId and comments */}
+        <Comments
+          username={username}
+          postId={postId}
+          comments={comments}
+          refreshComments={fetchComments} // Pass the refresh function
+        />
       </Box>
     </Box>
   );
 };
-
 
 export default PostDetails;
