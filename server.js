@@ -69,31 +69,31 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, "client/build")));
 
 
-app.post('/api/loadUserSettings', (req, res) => {
+// app.post('/api/loadUserSettings', (req, res) => {
 
 
-   let connection = mysql.createConnection(config);
-   let userID = req.body.userID;
+//    let connection = mysql.createConnection(config);
+//    let userID = req.body.userID;
 
 
-   let sql = `SELECT mode FROM user WHERE userID = ?`;
-   console.log(sql);
-   let data = [userID];
-   console.log(data);
+//    let sql = `SELECT mode FROM user WHERE userID = ?`;
+//    console.log(sql);
+//    let data = [userID];
+//    console.log(data);
 
 
-   connection.query(sql, data, (error, results, fields) => {
-       if (error) {
-           return console.error(error.message);
-       }
+//    connection.query(sql, data, (error, results, fields) => {
+//        if (error) {
+//            return console.error(error.message);
+//        }
 
 
-       let string = JSON.stringify(results);
-       //let obj = JSON.parse(string);
-       res.send({ express: string });
-   });
-   connection.end();
-});
+//        let string = JSON.stringify(results);
+//        //let obj = JSON.parse(string);
+//        res.send({ express: string });
+//    });
+//    connection.end();
+// });
 
 // ---- REVIEWS ROUTES ----
 
@@ -292,59 +292,6 @@ app.get('/api/user/id', async (req, res) => {
 
 
 
- // GET all posts (most recent first)
-router.get('/api/posts', (req, res) => {
-   const sql = 'SELECT * FROM posts ORDER BY created_at DESC';
-   db.query(sql, (err, results) => {
-     if (err) return res.status(500).json({ error: 'Error fetching posts' });
-     res.json(results);
-   });
- });
-  app.post('/api/posts', (req, res) => {
-   let connection = mysql.createConnection(config);
-   const { user_id, title, content, tag, name } = req.body;
-  
-   let sql = 'INSERT INTO posts (user_id, title, content, tag, author) VALUES (?, ?, ?, ?, ?)';
-   let data = [user_id, title, content, tag, name];
-
-
-   connection.query(sql, data, (error) => {
-       if (error) {
-           console.error('Error adding post:', error);
-           res.status(500).send('Error adding post');
-       } else {
-           res.status(200).send('Post added successfully');
-       }
-       connection.end();  // Ensure connection closes properly
-   });
-});
-
-
-router.get('/api/posts', (req, res) => {
-   const sql = 'SELECT id, user_id, title, content, tag, name, created_at FROM posts ORDER BY created_at DESC';
-   db.query(sql, (err, results) => {
-       if (err) return res.status(500).json({ error: 'Error fetching posts' });
-       res.json(results);
-   });
-});
-  app.post('/api/loadUserSettings', (req, res) => {
-   const userID = req.body.userID; // Get userID from request body
-
-
-   const sql = `SELECT mode FROM user WHERE userID = ?`;
-   const data = [userID];
-
-
-   db.query(sql, data, (error, results) => {
-       if (error) {
-           console.error('Error fetching user settings:', error.message);
-           return res.status(500).json({ error: 'Error fetching user settings' });
-       }
-
-
-       res.json(results);
-   });
-});
 
 
 ///
@@ -897,6 +844,204 @@ app.post("/api/invites/reject/:inviteId", (req, res) => {
       res.json({ message: "Invite rejected successfully!" });
   });
 });
+
+//--------BLOG ROUTES--------
+
+
+const authenticateUser = (req, res, next) => {
+  const userId = req.headers['user-id'];
+  if (!userId) {
+    return res.status(401).json({ error: 'User not authenticated' });
+  }
+  // Create a user object that includes the id and any additional properties you want.
+  req.user = {
+    uid: userId,
+    displayName: 'Placeholder Name' // Replace or extend as needed.
+  };
+  console.log("Authenticated user:", req.user);
+  next();
+};
+
+
+app.post('/api/loadUserSettings', (req, res) => {
+  let connection = mysql.createConnection(config);
+  let userID = req.body.userID;
+
+
+
+
+  let sql = `SELECT name FROM users WHERE id = ?`;
+  console.log(sql);
+  let data = [userID];
+  console.log(data);
+
+
+
+
+  connection.query(sql, data, (error, results, fields) => {
+      if (error) {
+          return console.error(error.message);
+      }
+
+
+
+
+      let string = JSON.stringify(results);
+      res.send({ express: string });
+      console.log(results)
+
+
+  });
+  connection.end();
+});
+ 
+
+
+app.get('/api/getPost/:id', (req, res) => {
+  const postId = req.params.id; // Extract postId from URL
+  const sql = 'SELECT * FROM posts WHERE id = ?'; // Adjust table name if necessary
+ 
+  db.query(sql, [postId], (err, results) => {
+    if (err) {
+    console.error('Error fetching post:', err);
+    return res.status(500).json({ error: 'Database error' });
+    }
+    if (results.length === 0) {
+    return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json(results[0]); // Return the first result
+  });
+  });
+
+
+  //  GET all posts (most recent first)
+  // If a user_id query parameter is provided, filter the posts accordingly.
+  router.get('/api/posts', (req, res) => {
+    let sql = 'SELECT id, user_id, title, content, tag, author, created_at FROM posts';
+    const queryParams = [];
+ 
+    if (req.query.user_id) {
+      sql += ' WHERE user_id = ?';
+      queryParams.push(req.query.user_id);
+      console.log("Filtering posts for user_id:", req.query.user_id);
+    } else {
+      console.log("No user_id provided; fetching all posts");
+    }
+ 
+    sql += ' ORDER BY created_at DESC';
+    console.log("Executing SQL:", sql, queryParams);
+ 
+    db.query(sql, queryParams, (err, results) => {
+      if (err) {
+        console.error("Database error:", err.message);
+        return res.status(500).json({ error: "Error fetching posts", details: err.message });
+      }
+      console.log("Query returned", results.length, "rows");
+      res.json(results);
+    });
+  });
+ 
+  //  GET a single post by ID
+  router.get('/api/posts/:id', (req, res) => {
+    const postId = req.params.id;
+    const sql = 'SELECT * FROM posts WHERE id = ?';
+ 
+    db.query(sql, [postId], (err, results) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (results.length === 0) return res.status(404).json({ error: 'Post not found' });
+        res.json(results[0]);
+    });
+  });
+ 
+//  ADD a new post
+app.post('/api/posts', authenticateUser, (req, res) => {
+  const { user, username, title, content, tag } = req.body;
+  if (!title || !content || !tag) return res.status(400).json({ error: "All fields are required" });
+
+
+  const userId = user || null;
+  const authorName = username || "Anonymous";
+
+
+  console.log([userId, title, content, tag, authorName])
+
+
+  const sql = 'INSERT INTO posts (user_id, title, content, tag, author) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [userId, title, content, tag, authorName], (err, result) => {
+      if (err) return res.status(500).json({ error: "Failed to add post" });
+      res.status(201).json({ message: "Post added successfully", postId: result.insertId });
+  });
+});
+ 
+//  GET comments for a specific post
+app.get('/api/posts/:postId/comments', (req, res) => {
+  const postId = req.params.postId;
+  const sql = 'SELECT * FROM comments WHERE post_id = ?';
+
+
+  db.query(sql, [postId], (err, results) => {
+      if (err) return res.status(500).json({ error: 'Failed to fetch comments' });
+      res.json(results);
+  });
+});
+ 
+//  ADD a new comment
+router.post('/api/comments', authenticateUser, (req, res) => {
+  const { post_id, content } = req.body;
+  if (!post_id || !content) return res.status(400).json({ error: "All fields are required" });
+
+
+  const authorName = req.user.displayName || "Anonymous";
+
+
+  const sql = 'INSERT INTO comments (name, post_id, content) VALUES (?, ?, ?)';
+  db.query(sql, [authorName, post_id, content], (err, result) => {
+      if (err) return res.status(500).json({ error: "Failed to add comment" });
+      res.status(201).json({ message: "Comment added successfully", commentId: result.insertId });
+  });
+});
+
+
+app.post('/api/addComment', (req, res) => {
+  const { name, post_id, content } = req.body;
+ 
+  if (!name || !post_id || !content) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
+  console.log([name, post_id, content])
+  const sql = 'INSERT INTO comments (name, post_id, content) VALUES (?, ?, ?)';
+  db.query(sql, [name, post_id, content], (err, result) => {
+    if (err) {
+    console.error("Error inserting comment:", err);
+    return res.status(500).json({ error: "Failed to add comment" });
+    }
+    res.status(201).json({ message: "Comment added successfully", commentId: result.insertId });
+    console.log(result)
+  });
+  });  
+
+
+
+
+// Get comments by post ID
+app.get('/api/getComments/:postId', (req, res) => {
+  const postId = req.params.postId;
+
+
+  console.log(postId)
+  const sql = 'SELECT * FROM comments WHERE post_id = ?'; // Query to fetch comments by post_id
+  db.query(sql, [postId], (err, results) => {
+      if (err) {
+          console.error('Error fetching comments:', err);
+          return res.status(500).json({ error: 'Failed to fetch comments' });
+      }
+      res.json(results); // Send the results back to the client
+      console.log(results)
+  });
+});
+
+
+
 
 
 app.use(router);

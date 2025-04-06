@@ -11,6 +11,9 @@ import Landing from '../Landing';
 import MyReviews from '../Reviews/MyReviews';
 import WriteReviews from '../Reviews/WriteReviews';
 import ProfileReviews from '../Reviews/ProfileReviews';
+import Comments from '../Blog/Comments';
+import PostDetails from '../Blog/PostDetails';
+
 
 // Layout for authenticated pages with navbar and background color
 const AppLayout = () => (
@@ -18,12 +21,15 @@ const AppLayout = () => (
     <Navbar />
     <Routes>
       <Route path="/search" element={<Search />} />
+      <Route path="/blog" element={<PostCreation />} />
       <Route path="/PostCreation" element={<PostCreation />} />
       <Route path="/Matches" element={<Matches />} />
       <Route path="/Profile" element={<Profile />} />
       <Route path="/MyReviews" element={<MyReviews />} />
       <Route path="/WriteReviews" element={<WriteReviews />} />
       <Route path="/ProfileReviews" element={<ProfileReviews />} />
+      <Route path="/PostCreation/Comments" element={<Comments />} />
+      <Route path="/post/:postId" element={<PostDetails />} />
     </Routes>
   </Box>
 );
