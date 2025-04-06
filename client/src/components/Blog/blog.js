@@ -1,34 +1,30 @@
-import React, { useState, useEffect, useContext } from "react";  
+import React, { useState, useEffect } from "react";
 import {
   Grid, Typography, TextField, Button, Select, MenuItem, InputLabel,
   FormControl, Box, Card, CardContent, CardActionArea
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-
-
-
 const PostCreation = () => {
   const navigate = useNavigate();
 
-
   const [user, setUser] = React.useState(null);
   const [username, setUsername] = React.useState("");
- 
+
   useEffect(() => {
-      const storedUser = localStorage.getItem("currentUser");
-      if (storedUser) setUser(JSON.parse(storedUser));
-    }, []);
- 
+    const storedUser = localStorage.getItem("currentUser");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
+
   useEffect(() => {
     if (!user) return;
- 
+
     fetch("/api/loadUserSettings", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ userID: user.userId }) // assuming user_id is the correct key
+      body: JSON.stringify({ userID: user.userId })
     })
       .then(res => res.json())
       .then(data => {
@@ -38,7 +34,6 @@ const PostCreation = () => {
       .catch(console.error);
   }, [user]);
 
-
   const [postTitle, setPostTitle] = useState("");
   const [postContent, setPostContent] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
@@ -46,17 +41,12 @@ const PostCreation = () => {
   const [errors, setErrors] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [submittedPosts, setSubmittedPosts] = useState([]);
-  const [filterTag, setFilterTag] = useState(""); // State for tag filtering
-
+  const [filterTag, setFilterTag] = useState("");
 
   const tags = ["Music", "Science", "Fitness", "Art", "Technology", "General"];
 
-
-  // Fetch posts from the database, filtering by logged-in user's id if available.
   const fetchPosts = () => {
-    const url =
-      user && user.user_id ? `/api/posts?user_id=${user.user_id}` : "/api/posts";
-    console.log("Fetching posts for user_id:", user && user.user_id);
+    const url = user && user.user_id ? `/api/posts?user_id=${user.user_id}` : "/api/posts";
     fetch(url)
       .then((res) => {
         if (!res.ok) {
@@ -65,25 +55,18 @@ const PostCreation = () => {
         return res.json();
       })
       .then((data) => {
-        console.log("Fetched posts:", data);
         setSubmittedPosts(data);
       })
       .catch((err) => console.error("Error fetching posts:", err));
   };
 
-
-
-
   useEffect(() => {
     fetchPosts();
   }, [user]);
 
-
   const handleSubmit = async () => {
-    // Validate form fields
     const newErrors = {};
     let hasError = false;
-
 
     if (!postTitle) {
       newErrors.postTitle = "Title is required";
@@ -98,26 +81,13 @@ const PostCreation = () => {
       hasError = true;
     }
 
-
-    // const user = auth.currentUser;
-    // if (!user) {
-    //   console.error("User not signed in");
-    //   return;
-    // }
-
-
-    // const authorName = user.displayName || "Anonymous";
-
-
     setErrors(newErrors);
     if (hasError) return;
-
 
     if (!user || !user.userId) {
       console.error("User not logged in");
       return;
     }
-
 
     const newPost = {
       title: postTitle,
@@ -127,9 +97,7 @@ const PostCreation = () => {
       username: username || "Anonymous"
     };
 
-
     try {
-      console.log("Submitting new post:", newPost);
       const response = await fetch("/api/posts", {
         method: "POST",
         headers: {
@@ -139,17 +107,12 @@ const PostCreation = () => {
         body: JSON.stringify(newPost),
       });
 
-
       if (!response.ok) {
         throw new Error("Failed to create post.");
       }
 
-
       const data = await response.json();
-      console.log("Post created with ID:", data.postId);
 
-
-      // Reset form and refresh posts
       setShowConfirmation(true);
       setPostTitle("");
       setPostContent("");
@@ -162,34 +125,78 @@ const PostCreation = () => {
     }
   };
 
-
-  // Filter posts by the selected tag
   const filteredPosts = filterTag
     ? submittedPosts.filter(post => post.tag === filterTag)
     : submittedPosts;
 
+  const inputStyles = {
+    backgroundColor: "#ffffff",
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': {
+        borderColor: '#2b6777',
+      },
+      '&:hover fieldset': {
+        borderColor: '#2b6777',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#2b6777',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: '#2b6777',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: '#2b6777',
+    }
+  };
 
   return (
-    <Box sx={{ flexGrow: 1, p: 5 }}>
-      <Typography variant="h3" sx={{ fontFamily: "Courier New", textAlign: "center", mb: 3 }}>
+    <Box sx={{ flexGrow: 1, p: 5, backgroundColor: "#f2f2f2", minHeight: "100vh" }}>
+      <Typography
+        variant="h3"
+        sx={{
+          textAlign: "center",
+          mb: 3,
+          color: "#2b6777",
+          fontWeight: "bold",
+          fontFamily: "Arial, sans-serif"
+        }}
+      >
         Welcome to SkillSwap Discussions
       </Typography>
 
-
-      <Grid container spacing={2} justifyContent="center" sx={{ mb: 2 }}>
+      <Grid container spacing={2} justifyContent="center" alignItems="center" sx={{ mb: 2 }}>
         <Grid item>
-          <Button variant="contained" color="primary" onClick={() => setShowForm(true)}>
+          <Button
+            variant="contained"
+            sx={{
+              backgroundColor: "#52ab98",
+              "&:hover": { backgroundColor: "#2b6777" },
+              height: "56px",
+              px: 3
+            }}
+            onClick={() => setShowForm(true)}
+          >
             Create a Post
           </Button>
         </Grid>
         <Grid item>
-          <FormControl variant="outlined" sx={{ minWidth: 120 }}>
+          <FormControl
+            variant="outlined"
+            sx={{
+              minWidth: 180,
+              height: "56px",
+              justifyContent: "center",
+              ...inputStyles
+            }}
+          >
             <InputLabel id="filter-tag-label">Filter by Tag</InputLabel>
             <Select
               labelId="filter-tag-label"
               value={filterTag}
               label="Filter by Tag"
               onChange={(e) => setFilterTag(e.target.value)}
+              sx={{ height: "56px" }}
             >
               <MenuItem value="">
                 <em>All</em>
@@ -204,11 +211,17 @@ const PostCreation = () => {
         </Grid>
       </Grid>
 
-
       {showForm && (
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <Typography variant="h3" sx={{ fontFamily: "Courier New", textAlign: "center" }}>
+            <Typography
+              variant="h3"
+              sx={{
+                textAlign: "center",
+                color: "#2b6777",
+                fontFamily: "Arial, sans-serif"
+              }}
+            >
               Create a New Post
             </Typography>
           </Grid>
@@ -217,6 +230,7 @@ const PostCreation = () => {
               label="Post Title"
               variant="outlined"
               fullWidth
+              sx={inputStyles}
               value={postTitle}
               onChange={(e) => setPostTitle(e.target.value)}
               error={!!errors.postTitle}
@@ -224,7 +238,7 @@ const PostCreation = () => {
             />
           </Grid>
           <Grid item xs={12}>
-            <FormControl fullWidth variant="outlined" error={!!errors.selectedTag}>
+            <FormControl fullWidth variant="outlined" error={!!errors.selectedTag} sx={inputStyles}>
               <InputLabel id="tag-label">Tag</InputLabel>
               <Select
                 labelId="tag-label"
@@ -238,7 +252,9 @@ const PostCreation = () => {
                   </MenuItem>
                 ))}
               </Select>
-              {errors.selectedTag && <Typography color="error">{errors.selectedTag}</Typography>}
+              {errors.selectedTag && (
+                <Typography color="error">{errors.selectedTag}</Typography>
+              )}
             </FormControl>
           </Grid>
           <Grid item xs={12}>
@@ -248,6 +264,7 @@ const PostCreation = () => {
               fullWidth
               multiline
               rows={4}
+              sx={inputStyles}
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
               error={!!errors.postContent}
@@ -255,13 +272,27 @@ const PostCreation = () => {
             />
           </Grid>
           <Grid item xs={12} display="flex" justifyContent="center">
-            <Button variant="contained" color="primary" onClick={handleSubmit}>
+            <Button
+              variant="contained"
+              sx={{
+                backgroundColor: "#52ab98",
+                "&:hover": { backgroundColor: "#2b6777" }
+              }}
+              onClick={handleSubmit}
+            >
               Submit Post
             </Button>
           </Grid>
           {showConfirmation && (
             <Grid item xs={12}>
-              <Typography variant="h6" sx={{ fontFamily: "Courier New", textAlign: "center" }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  textAlign: "center",
+                  color: "#52ab98",
+                  fontFamily: "Arial, sans-serif"
+                }}
+              >
                 Post Submitted Successfully!
               </Typography>
             </Grid>
@@ -269,20 +300,18 @@ const PostCreation = () => {
         </Grid>
       )}
 
-
-      {/* Display Filtered Posts */}
       {filteredPosts.length > 0 && (
         <Box sx={{ mt: 4 }}>
           {filteredPosts.map((post) => (
-            <Card key={post.id} sx={{ mb: 2, p: 2 }}>
-              <CardActionArea onClick={() => navigate(`/post/${post.id}`, {state: {username}})}>
+            <Card key={post.id} sx={{ mb: 2, p: 2, backgroundColor: "#ffffff", borderLeft: "5px solid #52ab98" }}>
+              <CardActionArea onClick={() => navigate(`/post/${post.id}`, { state: { username } })}>
                 <CardContent>
-                  <Typography variant="h5">{post.title}</Typography>
-                  <Typography variant="subtitle1" color="textSecondary">
+                  <Typography variant="h5" sx={{ color: "#2b6777" }}>{post.title}</Typography>
+                  <Typography variant="subtitle1" sx={{ color: "#c8d8e4" }}>
                     By: {post.author || "Unknown"} | {new Date(post.created_at).toLocaleString()}
                   </Typography>
-                  <Typography variant="body1">{post.content}</Typography>
-                  <Typography variant="body2" color="primary">
+                  <Typography variant="body1" sx={{ color: "#2b6777" }}>{post.content}</Typography>
+                  <Typography variant="body2" sx={{ color: "#52ab98" }}>
                     Tag: {post.tag}
                   </Typography>
                 </CardContent>
@@ -294,6 +323,5 @@ const PostCreation = () => {
     </Box>
   );
 };
-
 
 export default PostCreation;

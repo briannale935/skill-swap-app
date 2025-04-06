@@ -32,17 +32,25 @@ const PostDetails = () => {
       .catch((err) => console.error('Error fetching post:', err));
   }, [postId, fetchComments]);
 
-  if (!post) return <Typography>Loading post {postId}...</Typography>;
+  if (!post) return (
+    <Typography sx={{ textAlign: 'center', mt: 4, color: '#2b6777' }}>
+      Loading post {postId}...
+    </Typography>
+  );
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
-      <Card sx={{ p: 3 }}>
+    <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4, px: 2 }}>
+      <Card sx={{ p: 3, backgroundColor: '#ffffff', borderLeft: '5px solid #52ab98' }}>
         <CardContent>
-          <Typography variant="h4">{post.title}</Typography>
-          <Typography variant="subtitle1" color="textSecondary">
+          <Typography variant="h4" sx={{ color: '#2b6777', fontWeight: 'bold' }}>
+            {post.title}
+          </Typography>
+          <Typography variant="subtitle1" sx={{ color: '#2b6777', mb: 2 }}>
             By: {post.name} | {new Date(post.created_at).toLocaleString()}
           </Typography>
-          <Typography variant="body1" sx={{ mt: 2 }}>{post.content}</Typography>
+          <Typography variant="body1" sx={{ color: '#2b6777' }}>
+            {post.content}
+          </Typography>
         </CardContent>
       </Card>
 
@@ -51,7 +59,7 @@ const PostDetails = () => {
           username={username}
           postId={postId}
           comments={comments}
-          refreshComments={fetchComments} // Pass the refresh function
+          refreshComments={fetchComments}
         />
       </Box>
     </Box>

@@ -50,9 +50,41 @@ const Comments = ({ username, postId }) => {
     return null;
   };
 
+  const inputStyles = {
+    backgroundColor: '#ffffff',
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': {
+        borderColor: '#2b6777',
+      },
+      '&:hover fieldset': {
+        borderColor: '#2b6777',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#2b6777',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: '#2b6777',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: '#2b6777',
+    },
+  };
+
   return (
     <Box sx={{ mt: 2 }}>
-      <Button variant="contained" onClick={() => { setShowForm(!showForm); setReplyTo(null); }}>
+      <Button
+        variant="contained"
+        onClick={() => {
+          setShowForm(!showForm);
+          setReplyTo(null);
+        }}
+        sx={{
+          backgroundColor: '#52ab98',
+          '&:hover': { backgroundColor: '#2b6777' },
+          mb: 2,
+        }}
+      >
         {showForm ? 'Cancel' : 'Comment'}
       </Button>
 
@@ -62,40 +94,60 @@ const Comments = ({ username, postId }) => {
             fullWidth
             multiline
             rows={3}
-            label={replyTo ? `Replying to ${replyTo.name}` : "Write a comment..."}
+            label={replyTo ? `Replying to ${replyTo.name}` : 'Write a comment...'}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            sx={{ mt: 2 }}
+            sx={{ mt: 1, ...inputStyles }}
           />
-          <Button type="submit" variant="contained" sx={{ mt: 1 }}>
+          <Button
+            type="submit"
+            variant="contained"
+            sx={{
+              mt: 1,
+              backgroundColor: '#52ab98',
+              '&:hover': { backgroundColor: '#2b6777' },
+            }}
+          >
             Submit
           </Button>
         </form>
       )}
 
-      <Divider sx={{ my: 3 }} />
-      <Typography variant="h6">Comments:</Typography>
+      <Divider sx={{ my: 3, borderColor: '#2b6777' }} />
+      <Typography variant="h6" sx={{ color: '#2b6777', fontWeight: 'bold' }}>
+        Comments:
+      </Typography>
 
       {comments.map((comment) => {
         const parsed = parseReply(comment);
-        
-        // Render only main comments and not replies
+
         if (!parsed) {
           return (
             <Box key={comment.id} sx={{ mb: 2 }}>
-              <Typography variant="body2">
+              <Typography variant="body2" sx={{ color: '#2b6777' }}>
                 <strong>{comment.name}</strong>: {comment.content}
               </Typography>
-              <Button size="small" onClick={() => { setReplyTo(comment); setShowForm(true); }}>
+              <Button
+                size="small"
+                onClick={() => {
+                  setReplyTo(comment);
+                  setShowForm(true);
+                }}
+                sx={{
+                  mt: 0.5,
+                  color: '#52ab98',
+                  textTransform: 'none',
+                  '&:hover': { color: '#2b6777' },
+                }}
+              >
                 Reply
               </Button>
 
-              {/* Display replies directly under the corresponding comment */}
               {comments
                 .filter((reply) => reply.content.startsWith(`@${comment.id}|`))
                 .map((reply) => (
                   <Box key={reply.id} sx={{ ml: 4, mt: 1 }}>
-                    <Typography variant="body2">
+                    <Typography variant="body2" sx={{ color: '#2b6777' }}>
                       <strong>{reply.name}</strong>: {reply.content.replace(/^@\d+\|\s/, '')}
                     </Typography>
                   </Box>
@@ -103,8 +155,8 @@ const Comments = ({ username, postId }) => {
             </Box>
           );
         }
-        
-        return null; // Exclude replies from the main rendering
+
+        return null;
       })}
     </Box>
   );
