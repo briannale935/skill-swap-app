@@ -6,7 +6,7 @@ import {
 import { auth } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 
-const serverURL = ""; 
+const serverURL = "";
 
 function Profile() {
   const [name, setName] = useState("");
@@ -73,7 +73,6 @@ function Profile() {
         profilePictureURL = uploadData.imagePath;
         console.log("Image uploaded:", profilePictureURL);
       } else if (profilePicturePreview.startsWith("blob:")) {
-        // blob = just preview, no need to save
         profilePictureURL = "";
       }
 
@@ -117,16 +116,43 @@ function Profile() {
 
   const timeOptions = Array.from({ length: 24 }, (_, i) => i);
 
+  const inputStyles = {
+    backgroundColor: "#ffffff",
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': {
+        borderColor: '#2b6777',
+      },
+      '&:hover fieldset': {
+        borderColor: '#2b6777',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#2b6777',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: '#2b6777',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: '#2b6777',
+    }
+  };
+
   return (
     <Box sx={{ backgroundColor: "#c8d8e4", minHeight: "100vh", py: 5 }}>
       <Container maxWidth="sm">
         <Paper elevation={4} sx={{ padding: 4, borderRadius: "16px" }}>
-          <Typography variant="h4" align="center" sx={{ fontWeight: 600 }}>
+          <Typography variant="h4" align="center" sx={{ fontWeight: 600, color: "#2b6777" }}>
             Update Your Profile
           </Typography>
 
           {message && (
-            <Typography align="center" color={message.includes("success") ? "green" : "error"}>
+            <Typography
+              align="center"
+              sx={{
+                mt: 1,
+                color: message.includes("success") ? "#52ab98" : "#d32f2f",
+              }}
+            >
               {message}
             </Typography>
           )}
@@ -150,7 +176,7 @@ function Profile() {
             />
           </Box>
 
-          {[ 
+          {[
             { label: "Name", value: name, setter: setName },
             { label: "Skill", value: skill, setter: setSkill },
             { label: "Location", value: location, setter: setLocation },
@@ -165,11 +191,14 @@ function Profile() {
               value={value}
               type={type}
               onChange={(e) => setter(e.target.value)}
+              sx={inputStyles}
             />
           ))}
 
-          <FormControl fullWidth margin="normal">
-            <InputLabel shrink>Time Availability</InputLabel>
+          <FormControl fullWidth margin="normal" sx={{ mt: 3, ...inputStyles }}>
+            <InputLabel shrink sx={{ backgroundColor: "#ffffff", px: 0.5 }}>
+              Time Availability
+            </InputLabel>
             <Select
               multiple
               value={timeAvailability}
@@ -177,7 +206,15 @@ function Profile() {
               renderValue={(selected) => (
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {selected.map((value) => (
-                    <Chip key={value} label={`${value}:00`} />
+                    <Chip
+                      key={value}
+                      label={`${value}:00`}
+                      sx={{
+                        backgroundColor: "#52ab98",
+                        color: "#ffffff",
+                        fontWeight: 500,
+                      }}
+                    />
                   ))}
                 </Box>
               )}
@@ -190,13 +227,25 @@ function Profile() {
             </Select>
           </FormControl>
 
-          <TextField label="Email" fullWidth value={email} disabled margin="normal" />
+          <TextField
+            label="Email"
+            fullWidth
+            value={email}
+            disabled
+            margin="normal"
+            sx={inputStyles}
+          />
 
           <Button
             variant="contained"
             fullWidth
             onClick={handleProfileSubmit}
-            sx={{ mt: 3, backgroundColor: "#2b6777", fontWeight: 600 }}
+            sx={{
+              mt: 3,
+              backgroundColor: "#52ab98",
+              fontWeight: 600,
+              "&:hover": { backgroundColor: "#2b6777" },
+            }}
           >
             Save Profile
           </Button>
