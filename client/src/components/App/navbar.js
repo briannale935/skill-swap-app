@@ -12,7 +12,7 @@ function Navbar({ onLogout }) {
           Matches
         </Button>
         <Button color="inherit" component={Link} to="/PostCreation">
-          Blog
+          Discussions
         </Button>
         <Button color="inherit" component={Link} to="/MyReviews">
           My Reviews
