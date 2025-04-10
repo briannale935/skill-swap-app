@@ -30,6 +30,7 @@ const StarRatingComponent = ({ value, setValue }) => {
         onChange={(event, newValue) => setValue(newValue)}
         onChangeActive={(event, newHover) => setHover(newHover)}
         size="large"
+        sx={{ color: '#2b6777' }}
       />
       {value !== null && (
         <Box sx={{ ml: 2 }}>{labels[hover !== -1 ? hover : value]}</Box>
@@ -213,7 +214,7 @@ const MyReviews = () => {
                     </Box>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                    <Rating value={Number(review.rating)} readOnly precision={0.5} />
+                    <Rating value={Number(review.rating)} readOnly precision={0.5} sx={{ color: '#2b6777' }} />
                     <Typography variant="body2" sx={{ ml: 1 }}>{Number(review.rating)}/5</Typography>
                   </Box>
                   <Typography sx={{ whiteSpace: 'pre-line' }}>
@@ -246,14 +247,49 @@ const MyReviews = () => {
       <Dialog open={editDialogOpen} onClose={handleEditClose} maxWidth="md" fullWidth>
         <DialogTitle sx={{ bgcolor: "#2b6777", color: "#ffffff" }}>Edit Review</DialogTitle>
         <DialogContent sx={{ bgcolor: "#f2f2f2" }}>
-          <TextField name="title" label="Edit Title" fullWidth value={editFormData.title} onChange={handleEditFormChange} sx={{ mb: 2, bgcolor: "#ffffff" }} />
-          <TextField name="text" label="Edit Review" multiline rows={4} fullWidth value={editFormData.text} onChange={handleEditFormChange} sx={{ mb: 2, bgcolor: "#ffffff" }} />
+          <TextField
+            name="title"
+            label="Edit Title"
+            fullWidth
+            value={editFormData.title}
+            onChange={handleEditFormChange}
+            sx={{ mt: 3, mb: 2, bgcolor: "#ffffff" }}
+          />
+          <TextField
+            name="text"
+            label="Edit Review"
+            multiline
+            rows={4}
+            fullWidth
+            value={editFormData.text}
+            onChange={handleEditFormChange}
+            sx={{ mb: 2, bgcolor: "#ffffff" }}
+          />
           <Typography component="legend">Rating</Typography>
           <StarRatingComponent value={editFormData.rating} setValue={handleRatingChange} />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleEditClose} color="secondary">Cancel</Button>
-          <Button onClick={() => handleUpdateReview(selectedReview.review_id, editFormData)} color="primary" variant="contained">Save Changes</Button>
+          <Button
+            onClick={handleEditClose}
+            variant="outlined"
+            sx={{
+              color: '#2b6777',
+              borderColor: '#2b6777',
+              '&:hover': {
+                borderColor: '#255c6c',
+                backgroundColor: 'rgba(43, 103, 119, 0.04)',
+              }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleUpdateReview(selectedReview.review_id, editFormData)}
+            variant="contained"
+            sx={{ bgcolor: '#2b6777', '&:hover': { bgcolor: '#255c6c' } }}
+          >
+            Save Changes
+          </Button>
         </DialogActions>
       </Dialog>
 

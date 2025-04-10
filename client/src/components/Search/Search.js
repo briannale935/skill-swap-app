@@ -7,13 +7,17 @@ import {
   Typography,
   Card,
   CardContent,
-  CardMedia,
+  Avatar,
   Grid,
   Box,
   Dialog,
   DialogTitle,
   DialogContent,
-  Avatar
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
+  OutlinedInput,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import ProfileReviews from "../Reviews/ProfileReviews";
@@ -21,7 +25,7 @@ import WriteReviews from "../Reviews/WriteReviews";
 
 function Search() {
   const [skill, setSkill] = useState("");
-  const [timeAvailability, setTimeAvailability] = useState("");
+  const [timeAvailability, setTimeAvailability] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -42,7 +46,7 @@ function Search() {
   }, []);
 
   useEffect(() => {
-    if (skill === "" && timeAvailability === "") {
+    if (skill === "" && timeAvailability.length === 0) {
       setSearchResults([]);
       return;
     }
@@ -50,9 +54,8 @@ function Search() {
     const fetchSearchResults = async () => {
       setLoading(true);
       try {
-        const response = await fetch(
-          `/api/users/search?skill=${skill}&timeAvailability=${timeAvailability}`
-        );
+        const query = `/api/users/search?skill=${skill}&timeAvailability=${timeAvailability.join(",")}`;
+        const response = await fetch(query);
         const data = await response.json();
         if (response.ok) {
           setSearchResults(data);
@@ -182,30 +185,60 @@ function Search() {
           }}
         />
 
-        <TextField
-          label="Search by Time Availability"
-          variant="outlined"
-          fullWidth
-          value={timeAvailability}
-          onChange={(e) => setTimeAvailability(e.target.value)}
-          sx={{
-            mb: 2,
-            backgroundColor: "white",
-            borderRadius: 1,
-            "& .MuiOutlinedInput-root": {
-              "& fieldset": {
-                borderColor: "#2b6777",
-                borderWidth: "2px",
-              },
-              "&:hover fieldset": {
-                borderColor: "#2b6777",
-              },
-              "&.Mui-focused fieldset": {
-                borderColor: "#2b6777",
-              },
-            },
-          }}
-        />
+        <FormControl fullWidth sx={{ mb: 2 }}>
+          <InputLabel id="time-label">Search by Time Availability</InputLabel>
+          <Select
+            labelId="time-label"
+            label="Search by Time Availability"
+            multiple
+            value={timeAvailability}
+            onChange={(e) =>
+              setTimeAvailability(
+                e.target.value.filter((val) => !isNaN(val)).map(Number)
+              )
+            }
+            input={
+              <OutlinedInput
+                label="Search by Time Availability"
+                sx={{
+                  backgroundColor: "white",
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#2b6777",
+                    borderWidth: "2px",
+                  },
+                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#2b6777",
+                  },
+                  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                    borderColor: "#2b6777",
+                  },
+                }}
+              />
+            }
+            renderValue={(selected) =>
+              selected.map((val) => val.toString().padStart(2, "0") + ":00").join(", ")
+            }
+          >
+            {Array.from({ length: 24 }, (_, i) => (
+              <MenuItem
+                key={i}
+                value={i}
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "#52ab98",
+                    color: "#ffffff",
+                  },
+                  "&.Mui-selected:hover": {
+                    backgroundColor: "#2b6777",
+                    color: "#ffffff",
+                  },
+                }}
+              >
+                {i.toString().padStart(2, "0")}:00
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         <Button
           variant="contained"
@@ -218,7 +251,7 @@ function Search() {
           }}
           onClick={() => {
             setSkill("");
-            setTimeAvailability("");
+            setTimeAvailability([]);
           }}
         >
           Clear Search
@@ -260,8 +293,14 @@ function Search() {
                     <Typography variant="h6" sx={{ color: "#2b6777" }}>{user.name}</Typography>
                     <Typography><strong>Skill:</strong> {user.skill}</Typography>
                     <Typography><strong>Location:</strong> {user.location}</Typography>
-                    <Typography><strong>Time Availability:</strong> {user.time_availability}</Typography>
-                    <Typography sx={{ wordBreak: 'break-word' }}>
+                    <Typography>
+                      <strong>Time Availability:</strong>{" "}
+                      {user.time_availability
+                        ?.split(",")
+                        .map((t) => t.trim().padStart(2, "0") + ":00")
+                        .join(", ") || "N/A"}
+                    </Typography>
+                    <Typography sx={{ wordBreak: "break-word" }}>
                       <strong>Portfolio Link:</strong>{" "}
                       <a href={user.portfolio_link} target="_blank" rel="noopener noreferrer">
                         {user.portfolio_link}

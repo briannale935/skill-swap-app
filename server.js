@@ -425,8 +425,11 @@ app.get("/api/users/search", (req, res) => {
 
   if (timeAvailability) {
     const times = timeAvailability.split(",").map((t) => t.trim());
-    sql += " AND time_availability LIKE ?";
-    values.push(`%${times.join(",")}%`);
+
+    // Add FIND_IN_SET conditions for each requested hour
+    const timeConditions = times.map(() => "FIND_IN_SET(?, time_availability) > 0").join(" AND ");
+    sql += ` AND (${timeConditions})`;
+    values.push(...times);
   }
 
   connection.query(sql, values, (error, results) => {
@@ -444,7 +447,6 @@ app.get("/api/users/search", (req, res) => {
 
   connection.end();
 });
-
 
 
 

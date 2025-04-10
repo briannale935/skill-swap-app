@@ -34,7 +34,7 @@ const Landing = () => {
         </Typography>
 
         <Grid container spacing={3} justifyContent="center">
-          {["Search", "Matches", "Blog", "Profile"].map((label) => (
+          {["Search", "Matches", "Discussions", "Profile"].map((label) => (
             <Grid item xs={12} sm={6} key={label}>
               <Button
                 fullWidth
