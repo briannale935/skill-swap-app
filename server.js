@@ -6,8 +6,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import response from 'express';
-
-
+import { ReviewsRounded } from '@mui/icons-material';
+import multer from 'multer';
+import fs from 'fs';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +19,38 @@ const app = express();
 const port = process.env.PORT || 5000;
 const db = mysql.createConnection(config);
 
+// Ensure uploads folder exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Configure multer storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Only JPEG and PNG files allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
+// Serve uploaded images statically
+app.use('/uploads', express.static(uploadDir));
+
+
 
 db.connect((err) => {
    if (err) {
@@ -26,6 +59,7 @@ db.connect((err) => {
    }
    console.log('Connected to the MySQL database');
  });
+
   // Initialize router
 const router = express.Router();
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -35,32 +69,158 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, "client/build")));
 
 
-app.post('/api/loadUserSettings', (req, res) => {
+// app.post('/api/loadUserSettings', (req, res) => {
 
 
-   let connection = mysql.createConnection(config);
-   let userID = req.body.userID;
+//    let connection = mysql.createConnection(config);
+//    let userID = req.body.userID;
 
 
-   let sql = `SELECT mode FROM user WHERE userID = ?`;
-   console.log(sql);
-   let data = [userID];
-   console.log(data);
+//    let sql = `SELECT mode FROM user WHERE userID = ?`;
+//    console.log(sql);
+//    let data = [userID];
+//    console.log(data);
 
 
-   connection.query(sql, data, (error, results, fields) => {
-       if (error) {
-           return console.error(error.message);
-       }
+//    connection.query(sql, data, (error, results, fields) => {
+//        if (error) {
+//            return console.error(error.message);
+//        }
 
 
-       let string = JSON.stringify(results);
-       //let obj = JSON.parse(string);
-       res.send({ express: string });
-   });
-   connection.end();
+//        let string = JSON.stringify(results);
+//        //let obj = JSON.parse(string);
+//        res.send({ express: string });
+//    });
+//    connection.end();
+// });
+
+// ---- REVIEWS ROUTES ----
+
+// Middleware to check user authentication from headers
+const reviewAuth = (req, res, next) => {
+  const userId = req.headers['user-id']
+  if (!userId) {
+    return res.status(401).json({ error: 'User not authenticated '})
+  }
+  req.userId = userId
+  console.log("Authenticated reviewer_id:", req.userId);  // <-- Debug log
+  next();
+};
+
+// GET all reviews written by the authenticated user
+app.get('/api/my-reviews', reviewAuth, (req, res) => {
+  const sql = `SELECT * FROM reviews where reviewer_id = ? ORDER BY date_posted DESC`;
+  db.query(sql, [req.userId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
+// GET reviews for a specific recipient using query params
+app.get('/api/reviews', (req, res) => {
+  const recipientId = req.query.recipient_id;
+  if (!recipientId) {
+    return res.status(400).json({ error: 'Missing recipient_id in query parameters' });
+  }
+
+  const sql = `SELECT * FROM reviews WHERE recipient_id = ? ORDER BY date_posted DESC`;
+  db.query(sql, [recipientId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// POST: Create a new review
+app.post('/api/reviews', reviewAuth, (req, res) => {
+  // Expect recipient_id, review_title, content, and rating in the request body
+  const { recipient_id, review_title, content, rating } = req.body;
+  // const { review_title, content, rating } = req.body;
+  const reviewer_id = req.userId;
+
+  // Validate required fields
+  if (!recipient_id || !review_title || !content || rating == undefined) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  // For testing, we set a dummy recipient_id
+  // const dummyRecipientId = 1;
+
+  // Get usernames for reviewer and recipient
+  const getUserNames = `SELECT id, name FROM users WHERE id IN (?, ?)`;
+  db.query(getUserNames, [reviewer_id, /*dummyRecipientId*/ recipient_id], (err, users) => {
+    if (err || users.length < 2) {
+      return res.status(400).json({ error: 'User(s) not found'})
+    }
+
+    const reviewer = users.find(u => u.id == reviewer_id);
+    const recipient = users.find(u => u.id == recipient_id /*recipient_id*/);
+
+    const insertReview = `
+      INSERT INTO reviews
+      (reviewer_id, reviewer_username, recipient_id, recipient_username, review_title, content, rating)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+
+    db.query(
+      insertReview,
+      [
+        reviewer.id,
+        reviewer.name,
+        recipient.id,
+        recipient.name,
+        review_title,
+        content,
+        rating
+      ],
+      (err, result) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ message: 'Review created successfully', review_id: result.insertId})
+      }
+    );
+  });
+});
+
+
+// PUT update an existing review
+app.put('/api/reviews/:id', reviewAuth, (req, res) => {
+  const reviewId = req.params.id;
+  const { review_title, content, rating } = req.body;
+
+  const updateSql = `
+    UPDATE reviews
+    SET review_title = ?, content = ?, rating = ?, last_updated = CURRENT_TIMESTAMP
+    WHERE review_id = ? AND reviewer_id = ?
+  `;
+
+  db.query(updateSql, [review_title, content, rating, reviewId, req.userId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(403).json({ error: 'Unauthorized or review not found' });
+
+    // Now fetch the last_updated timestamp
+    const selectSql = `SELECT last_updated FROM reviews WHERE review_id = ?`;
+    db.query(selectSql, [reviewId], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Review updated successfully', last_updated: rows[0].last_updated });
+    });
+  });
+});
+
+// DELETE a review
+app.delete('/api/reviews/:id', reviewAuth, (req, res) => {
+  // Force conversion to a number (assuming your review_id is a number in the DB)
+  const reviewId = parseInt(req.params.id, 10);
+  // Also convert the reviewer id if needed
+  const reviewerId = parseInt(req.userId, 10);
+
+  const deleteSql = `DELETE FROM reviews WHERE review_id = ? AND reviewer_id = ?`
+  db.query(deleteSql, [reviewId, req.userId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (result.affectedRows === 0) return res.status(403).json({ error: 'Unauthorized or review not found' });
+    res.json({ message: 'Review deleted successfully'})
+  })
+})
 
 // Register User After Firebase Signup
 app.post('/api/register', async (req, res) => {
@@ -132,87 +292,63 @@ app.get('/api/user/id', async (req, res) => {
 
 
 
- // GET all posts (most recent first)
-router.get('/api/posts', (req, res) => {
-   const sql = 'SELECT * FROM posts ORDER BY created_at DESC';
-   db.query(sql, (err, results) => {
-     if (err) return res.status(500).json({ error: 'Error fetching posts' });
-     res.json(results);
-   });
- });
-  app.post('/api/posts', (req, res) => {
-   let connection = mysql.createConnection(config);
-   const { user_id, title, content, tag, name } = req.body;
-  
-   let sql = 'INSERT INTO posts (user_id, title, content, tag, author) VALUES (?, ?, ?, ?, ?)';
-   let data = [user_id, title, content, tag, name];
-
-
-   connection.query(sql, data, (error) => {
-       if (error) {
-           console.error('Error adding post:', error);
-           res.status(500).send('Error adding post');
-       } else {
-           res.status(200).send('Post added successfully');
-       }
-       connection.end();  // Ensure connection closes properly
-   });
-});
-
-
-router.get('/api/posts', (req, res) => {
-   const sql = 'SELECT id, user_id, title, content, tag, name, created_at FROM posts ORDER BY created_at DESC';
-   db.query(sql, (err, results) => {
-       if (err) return res.status(500).json({ error: 'Error fetching posts' });
-       res.json(results);
-   });
-});
-  app.post('/api/loadUserSettings', (req, res) => {
-   const userID = req.body.userID; // Get userID from request body
-
-
-   const sql = `SELECT mode FROM user WHERE userID = ?`;
-   const data = [userID];
-
-
-   db.query(sql, data, (error, results) => {
-       if (error) {
-           console.error('Error fetching user settings:', error.message);
-           return res.status(500).json({ error: 'Error fetching user settings' });
-       }
-
-
-       res.json(results);
-   });
-});
 
 
 ///
 // Update user profile
 app.post("/api/users/update", (req, res) => {
-  const { firebase_uid, name, skill, location, time_availability, years_of_experience, email, profile_picture, portfolio_link } = req.body;
-   if (!firebase_uid) {
+  const {
+    firebase_uid,
+    name,
+    skill,
+    location,
+    time_availability,
+    years_of_experience,
+    email,
+    profile_picture,
+    portfolio_link
+  } = req.body;
+
+  console.log("🔥 UPDATE REQUEST RECEIVED:");
+  console.log("Profile picture path:", profile_picture); // <--- SEE IF THIS IS CORRECT
+
+  if (!firebase_uid) {
     return res.status(400).json({ error: "User not logged in" });
   }
-   let connection = mysql.createConnection(config);
-   const sql = `
+
+  const sql = `
     UPDATE users
     SET name = ?, skill = ?, location = ?, time_availability = ?, years_of_experience = ?, email = ?, profile_picture = ?, portfolio_link = ?
     WHERE firebase_uid = ?
   `;
-   const values = [name, skill, location, time_availability, years_of_experience, email, profile_picture, portfolio_link, firebase_uid];
-   connection.query(sql, values, (error, results) => {
+
+  const values = [
+    name,
+    skill,
+    location,
+    time_availability,
+    years_of_experience,
+    email,
+    profile_picture,
+    portfolio_link,
+    firebase_uid
+  ];
+
+  db.query(sql, values, (error, results) => {
     if (error) {
-      console.error("Database query error:", error);
+      console.error("DB ERROR:", error);
       return res.status(500).json({ error: error.message });
     }
-     if (results.affectedRows === 0) {
+
+    if (results.affectedRows === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-     res.json({ message: "Profile updated successfully!" });
+
+    console.log("Profile updated successfully.");
+    res.json({ message: "Profile updated successfully!" });
   });
-   connection.end();
 });
+
 
 
 // Get user profile
@@ -229,7 +365,7 @@ let connection = mysql.createConnection(config);
 
 
 const sql = `
-  SELECT name, skill, location, time_availability, years_of_experience, profile_picture, portfolio_link
+  SELECT name, skill, location, time_availability, years_of_experience, profile_picture, portfolio_link, email
   FROM users
   WHERE firebase_uid = ?
 `;
@@ -252,6 +388,17 @@ connection.query(sql, [firebase_uid], (error, results) => {
 
 
 connection.end();
+});
+
+//profile picture 
+app.post('/api/users/upload-profile-picture', upload.single('profilePicture'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // Return just the relative path to store in DB
+  const imagePath = `/uploads/${req.file.filename}`;
+  res.json({ imagePath });
 });
 
 
@@ -278,8 +425,11 @@ app.get("/api/users/search", (req, res) => {
 
   if (timeAvailability) {
     const times = timeAvailability.split(",").map((t) => t.trim());
-    sql += " AND time_availability LIKE ?";
-    values.push(`%${times.join(",")}%`);
+
+    // Add FIND_IN_SET conditions for each requested hour
+    const timeConditions = times.map(() => "FIND_IN_SET(?, time_availability) > 0").join(" AND ");
+    sql += ` AND (${timeConditions})`;
+    values.push(...times);
   }
 
   connection.query(sql, values, (error, results) => {
@@ -297,8 +447,6 @@ app.get("/api/users/search", (req, res) => {
 
   connection.end();
 });
-
-
 
 
 
@@ -699,77 +847,206 @@ app.post("/api/invites/reject/:inviteId", (req, res) => {
   });
 });
 
+//--------BLOG ROUTES--------
+
+
+const authenticateUser = (req, res, next) => {
+  const userId = req.headers['user-id'];
+  if (!userId) {
+    return res.status(401).json({ error: 'User not authenticated' });
+  }
+  // Create a user object that includes the id and any additional properties you want.
+  req.user = {
+    uid: userId,
+    displayName: 'Placeholder Name' // Replace or extend as needed.
+  };
+  console.log("Authenticated user:", req.user);
+  next();
+};
+
+
+app.post('/api/loadUserSettings', (req, res) => {
+  let connection = mysql.createConnection(config);
+  let userID = req.body.userID;
+
+
+
+
+  let sql = `SELECT name FROM users WHERE id = ?`;
+  console.log(sql);
+  let data = [userID];
+  console.log(data);
+
+
+
+
+  connection.query(sql, data, (error, results, fields) => {
+      if (error) {
+          return console.error(error.message);
+      }
+
+
+
+
+      let string = JSON.stringify(results);
+      res.send({ express: string });
+      console.log(results)
+
+
+  });
+  connection.end();
+});
+ 
+
+
+app.get('/api/getPost/:id', (req, res) => {
+  const postId = req.params.id; // Extract postId from URL
+  const sql = 'SELECT * FROM posts WHERE id = ?'; // Adjust table name if necessary
+ 
+  db.query(sql, [postId], (err, results) => {
+    if (err) {
+    console.error('Error fetching post:', err);
+    return res.status(500).json({ error: 'Database error' });
+    }
+    if (results.length === 0) {
+    return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json(results[0]); // Return the first result
+  });
+  });
+
+
+  //  GET all posts (most recent first)
+  // If a user_id query parameter is provided, filter the posts accordingly.
+  router.get('/api/posts', (req, res) => {
+    let sql = 'SELECT id, user_id, title, content, tag, author, created_at FROM posts';
+    const queryParams = [];
+ 
+    if (req.query.user_id) {
+      sql += ' WHERE user_id = ?';
+      queryParams.push(req.query.user_id);
+      console.log("Filtering posts for user_id:", req.query.user_id);
+    } else {
+      console.log("No user_id provided; fetching all posts");
+    }
+ 
+    sql += ' ORDER BY created_at DESC';
+    console.log("Executing SQL:", sql, queryParams);
+ 
+    db.query(sql, queryParams, (err, results) => {
+      if (err) {
+        console.error("Database error:", err.message);
+        return res.status(500).json({ error: "Error fetching posts", details: err.message });
+      }
+      console.log("Query returned", results.length, "rows");
+      res.json(results);
+    });
+  });
+ 
+  //  GET a single post by ID
+  router.get('/api/posts/:id', (req, res) => {
+    const postId = req.params.id;
+    const sql = 'SELECT * FROM posts WHERE id = ?';
+ 
+    db.query(sql, [postId], (err, results) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        if (results.length === 0) return res.status(404).json({ error: 'Post not found' });
+        res.json(results[0]);
+    });
+  });
+ 
+//  ADD a new post
+app.post('/api/posts', authenticateUser, (req, res) => {
+  const { user, username, title, content, tag } = req.body;
+  if (!title || !content || !tag) return res.status(400).json({ error: "All fields are required" });
+
+
+  const userId = user || null;
+  const authorName = username || "Anonymous";
+
+
+  console.log([userId, title, content, tag, authorName])
+
+
+  const sql = 'INSERT INTO posts (user_id, title, content, tag, author) VALUES (?, ?, ?, ?, ?)';
+  db.query(sql, [userId, title, content, tag, authorName], (err, result) => {
+      if (err) return res.status(500).json({ error: "Failed to add post" });
+      res.status(201).json({ message: "Post added successfully", postId: result.insertId });
+  });
+});
+ 
+//  GET comments for a specific post
+app.get('/api/posts/:postId/comments', (req, res) => {
+  const postId = req.params.postId;
+  const sql = 'SELECT * FROM comments WHERE post_id = ?';
+
+
+  db.query(sql, [postId], (err, results) => {
+      if (err) return res.status(500).json({ error: 'Failed to fetch comments' });
+      res.json(results);
+  });
+});
+ 
+//  ADD a new comment
+router.post('/api/comments', authenticateUser, (req, res) => {
+  const { post_id, content } = req.body;
+  if (!post_id || !content) return res.status(400).json({ error: "All fields are required" });
+
+
+  const authorName = req.user.displayName || "Anonymous";
+
+
+  const sql = 'INSERT INTO comments (name, post_id, content) VALUES (?, ?, ?)';
+  db.query(sql, [authorName, post_id, content], (err, result) => {
+      if (err) return res.status(500).json({ error: "Failed to add comment" });
+      res.status(201).json({ message: "Comment added successfully", commentId: result.insertId });
+  });
+});
+
+
+app.post('/api/addComment', (req, res) => {
+  const { name, post_id, content } = req.body;
+ 
+  if (!name || !post_id || !content) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
+  console.log([name, post_id, content])
+  const sql = 'INSERT INTO comments (name, post_id, content) VALUES (?, ?, ?)';
+  db.query(sql, [name, post_id, content], (err, result) => {
+    if (err) {
+    console.error("Error inserting comment:", err);
+    return res.status(500).json({ error: "Failed to add comment" });
+    }
+    res.status(201).json({ message: "Comment added successfully", commentId: result.insertId });
+    console.log(result)
+  });
+  });  
+
+
+
+
+// Get comments by post ID
+app.get('/api/getComments/:postId', (req, res) => {
+  const postId = req.params.postId;
+
+
+  console.log(postId)
+  const sql = 'SELECT * FROM comments WHERE post_id = ?'; // Query to fetch comments by post_id
+  db.query(sql, [postId], (err, results) => {
+      if (err) {
+          console.error('Error fetching comments:', err);
+          return res.status(500).json({ error: 'Failed to fetch comments' });
+      }
+      res.json(results); // Send the results back to the client
+      console.log(results)
+  });
+});
+
+
+
+
 
 app.use(router);
 app.listen(port, () => console.log(`Listening on port ${port}`));
 
 
-// const createTables = `
-//   -- Skill swap requests table
-//   CREATE TABLE IF NOT EXISTS skill_swap_requests (
-//     id VARCHAR(36) PRIMARY KEY,
-//     sender_name VARCHAR(255) NOT NULL,
-//     recipient_name VARCHAR(255) NOT NULL,
-//     sender_skill VARCHAR(255) NOT NULL,
-//     requested_skill VARCHAR(255) NOT NULL,
-//     time_availability VARCHAR(255) NOT NULL,
-//     status ENUM('pending', 'accepted', 'declined', 'withdrawn') NOT NULL DEFAULT 'pending',
-//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//   );
-
-//   -- Successful matches table
-//   CREATE TABLE IF NOT EXISTS successful_matches (
-//     id VARCHAR(36) PRIMARY KEY,
-//     name VARCHAR(255) NOT NULL,
-//     skill VARCHAR(255) NOT NULL,
-//     location VARCHAR(255) NOT NULL,
-//     time_availability VARCHAR(255) NOT NULL,
-//     years_of_experience INT NOT NULL,
-//     email VARCHAR(255) NOT NULL,
-//     sessions_completed INT DEFAULT 0,
-//     status VARCHAR(50) DEFAULT 'active',
-//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//   );
-
-//   -- Users table (if not exists)
-//   CREATE TABLE IF NOT EXISTS users (
-//     id INT AUTO_INCREMENT PRIMARY KEY,
-//     name VARCHAR(255) NOT NULL,
-//     location VARCHAR(255),
-//     skills JSON,
-//     seeking JSON,
-//     availability VARCHAR(255),
-//     email VARCHAR(255) UNIQUE NOT NULL
-//   );
-// `;
-
-// // Insert mock data
-// const insertMockData = `
-//   -- Insert pending invites
-//   INSERT INTO skill_swap_requests (id, sender_name, sender_skill, requested_skill, time_availability, status, created_at)
-//   VALUES 
-//     ('inv1', 'Alice Johnson', 'Python Programming', 'Spanish Language', 'Weekends', 'pending', '2024-03-15 10:00:00'),
-//     ('inv2', 'Bob Smith', 'Guitar', 'Digital Marketing', 'Weekday Evenings', 'pending', '2024-03-14 15:30:00');
-
-//   -- Insert sent requests
-//   INSERT INTO skill_swap_requests (id, sender_name, recipient_name, sender_skill, requested_skill, time_availability, status, created_at)
-//   VALUES 
-//     ('req1', 'Current User', 'Carol White', 'JavaScript', 'Photography', 'Monday/Wednesday Evenings', 'pending', '2024-03-13 09:15:00'),
-//     ('req2', 'Current User', 'David Brown', 'Yoga', 'Data Analysis', 'Tuesday/Thursday Mornings', 'pending', '2024-03-12 14:45:00');
-
-//   -- Insert successful matches
-//   INSERT INTO successful_matches (id, name, skill, location, time_availability, years_of_experience, email, sessions_completed, status, created_at)
-//   VALUES 
-//     ('match1', 'Eva Martinez', 'French Language', 'Online', 'Weekends', 5, 'eva.martinez@example.com', 3, 'active', '2024-03-10 08:00:00'),
-//     ('match2', 'Frank Wilson', 'Web Design', 'Online', 'Weekday Evenings', 3, 'frank.wilson@example.com', 2, 'active', '2024-03-09 16:20:00'),
-//     ('match3', 'Tom Brown', 'Chinese Language', 'New York', 'Monday/Wednesday/Friday mornings', 8, 'tom.brown@example.com', 12, 'active', NOW()),
-//     ('match4', 'Maria Garcia', 'Marketing', 'Miami', 'Weekday afternoons', 6, 'maria.garcia@example.com', 8, 'active', NOW()),
-//     ('match5', 'James Wilson', 'Business Strategy', 'Chicago', 'Flexible hours', 10, 'james.wilson@example.com', 16, 'active', NOW());
-
-//   -- Insert mock users for search
-//   INSERT INTO users (name, location, skills, seeking, availability, email)
-//   VALUES 
-//     ('John Doe', 'New York', '["JavaScript", "React", "Node.js"]', '["Python", "Data Analysis"]', 'Weekday evenings', 'john.doe@example.com'),
-//     ('Jane Smith', 'San Francisco', '["Python", "Machine Learning", "Data Science"]', '["Web Development", "UI/UX Design"]', 'Weekends', 'jane.smith@example.com'),
-//     ('Mike Johnson', 'Chicago', '["Guitar", "Piano", "Music Theory"]', '["Spanish", "French"]', 'Flexible', 'mike.johnson@example.com');
-// `;

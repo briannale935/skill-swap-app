@@ -9,3 +9,4 @@ export const withFirebase = Component => props => (
 );
 
 export default FirebaseContext;
+export { FirebaseContext };

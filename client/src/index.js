@@ -3,15 +3,18 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./components/App";
 
+// Import Firebase and FirebaseContext from your Firebase folder
+import Firebase, { FirebaseContext } from "./components/Firebase"; // Adjust path if necessary
 
 import * as serviceWorker from "./serviceWorker";
 
+const firebase = new Firebase();
+
 ReactDOM.render(
-    <App />,
+  <FirebaseContext.Provider value={firebase}>
+    <App />
+  </FirebaseContext.Provider>,
   document.getElementById("root")
 );
 
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
 serviceWorker.unregister();

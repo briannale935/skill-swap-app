@@ -1,167 +1,195 @@
 import React, { useEffect, useState } from "react";
-import { Container, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Snackbar, Alert } from "@mui/material";
+import {
+  Container, Typography, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Paper, Snackbar, Alert, Button, Box, Divider,
+  Stack, ToggleButtonGroup, ToggleButton, Card, CardContent, Grid
+} from "@mui/material";
 
 const Matches = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [acceptedMatches, setAcceptedMatches] = useState([]);
   const [notification, setNotification] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [pendingView, setPendingView] = useState("table");
+  const [acceptedView, setAcceptedView] = useState("table");
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    }
+    const storedUser = localStorage.getItem("currentUser");
+    if (storedUser) setCurrentUser(JSON.parse(storedUser));
   }, []);
 
   useEffect(() => {
-    const userId = currentUser?.userId || "1";
-    
-    fetch(`/api/matches?user_id=${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
+    if (!currentUser) return;
+    fetch(`/api/matches?user_id=${currentUser.userId}`)
+      .then(res => res.json())
+      .then(data => {
         setPendingRequests(data.pending || []);
-        
-        // Deduplicate accepted matches by name
-        const uniqueMatches = [];
-        const matchNames = new Set();
-        
-        (data.accepted || []).forEach(match => {
-          if (!matchNames.has(match.name)) {
-            matchNames.add(match.name);
-            uniqueMatches.push(match);
+        const unique = [], names = new Set();
+        (data.accepted || []).forEach(m => {
+          if (!names.has(m.name)) {
+            names.add(m.name);
+            unique.push(m);
           }
         });
-        
-        setAcceptedMatches(uniqueMatches);
+        setAcceptedMatches(unique);
       })
-      .catch((err) => console.error("Error fetching matches:", err));
+      .catch(console.error);
   }, [currentUser]);
 
   const handleAccept = async (id) => {
     try {
-      const response = await fetch(`/api/matches/accept/${id}`, { method: "POST" });
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Find the request that was accepted
-        const acceptedRequest = pendingRequests.find(request => request.id === id);
-        
-        // Remove from pending requests
-        setPendingRequests(prev => prev.filter(request => request.id !== id));
-        
-        // Only add to accepted matches if it's not already there and not marked as already matched
-        const isDuplicate = acceptedMatches.some(match => match.name === acceptedRequest.sender_name);
-        
-        if (!isDuplicate && !data.alreadyMatched) {
-          // Create a new match object from the accepted request
-          const newMatch = {
-            id: acceptedRequest.id,
-            name: acceptedRequest.sender_name,
-            skill: acceptedRequest.sender_skill,
-            location: "Online", // Default location
-            time_availability: acceptedRequest.time_availability,
-            email: data.email || "aithy@example.com" // Use the email from the response or a default
-          };
-          
-          setAcceptedMatches(prev => [...prev, newMatch]);
+      const res = await fetch(`/api/matches/accept/${id}`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        const req = pendingRequests.find(r => r.id === id);
+        setPendingRequests(p => p.filter(r => r.id !== id));
+        if (!acceptedMatches.some(m => m.name === req.sender_name) && !data.alreadyMatched) {
+          setAcceptedMatches(p => [...p, {
+            id: req.id,
+            name: req.sender_name,
+            skill: req.sender_skill,
+            location: "Online",
+            time_availability: req.time_availability,
+            email: data.email || "aithy@example.com"
+          }]);
         }
-        
-        setNotification({ message: "Skill swap accepted! Contact details shared.", severity: "success" });
+        setNotification({ message: "Skill swap accepted!", severity: "success" });
       } else {
-        console.error("Error accepting request:", data);
-        setNotification({ message: "Failed to accept request: " + (data.message || "Unknown error"), severity: "error" });
+        setNotification({ message: data.message || "Accept failed", severity: "error" });
       }
     } catch (err) {
-      console.error("Error accepting request:", err);
-      setNotification({ message: "Error accepting request: " + err.message, severity: "error" });
+      setNotification({ message: err.message, severity: "error" });
     }
   };
 
   const handleReject = async (id) => {
     try {
-      const response = await fetch(`/api/matches/reject/${id}`, { method: "POST" });
-      if (response.ok) {
-        setPendingRequests((prev) => prev.filter((request) => request.id !== id));
-        setNotification({ message: "Skill swap request rejected.", severity: "info" });
+      const res = await fetch(`/api/matches/reject/${id}`, { method: "POST" });
+      if (res.ok) {
+        setPendingRequests(p => p.filter(r => r.id !== id));
+        setNotification({ message: "Request rejected", severity: "info" });
       }
     } catch (err) {
-      console.error("Error rejecting request:", err);
+      console.error(err);
     }
   };
 
-  return (
-    <Container>
-      <Typography variant="h4" gutterBottom>Pending Requests</Typography>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><b>Sender Name</b></TableCell>
-              <TableCell><b>Sender Skill</b></TableCell>
-              <TableCell><b>Requested Skill</b></TableCell>
-              <TableCell><b>Time Availability</b></TableCell>
-              <TableCell><b>Actions</b></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {pendingRequests.length > 0 ? (
-              pendingRequests.map((request) => (
-                <TableRow key={request.id}>
-                  <TableCell>{request.sender_name}</TableCell>
-                  <TableCell>{request.sender_skill}</TableCell>
-                  <TableCell>{request.requested_skill || "N/A"}</TableCell>
-                  <TableCell>{request.time_availability}</TableCell>
-                  <TableCell>
-                    <Button variant="contained" color="primary" onClick={() => handleAccept(request.id)}>Accept</Button>
-                    <Button variant="contained" color="secondary" onClick={() => handleReject(request.id)} style={{ marginLeft: "10px" }}>Reject</Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} style={{ textAlign: "center" }}>No pending requests</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+  const renderAvailability = (times) => times.split(",").map((t, i) => (
+    <Box key={i} component="span" sx={{
+      backgroundColor: "#c8d8e4",
+      color: "#2b6777",
+      px: 1,
+      py: 0.3,
+      borderRadius: 2,
+      fontSize: "0.75rem",
+      mr: 0.5
+    }}>{t}</Box>
+  ));
 
-      <Typography variant="h4" gutterBottom style={{ marginTop: "30px" }}>Accepted Matches</Typography>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell><b>Name</b></TableCell>
-              <TableCell><b>Skill</b></TableCell>
-              <TableCell><b>Location</b></TableCell>
-              <TableCell><b>Time Availability</b></TableCell>
-              <TableCell><b>Email</b></TableCell>
+  const renderCard = (item, isPending = false) => (
+    <Card key={item.id} variant="outlined" sx={{
+      backgroundColor: "#f2f2f2",
+      borderRadius: 3,
+      p: 2,
+      mb: 2,
+      boxShadow: 2
+    }}>
+      <CardContent>
+        <Grid container spacing={2}>
+          <Grid item xs={6}><b>Name:</b> {item.name || item.sender_name}</Grid>
+          <Grid item xs={6}><b>Skill:</b> {item.skill || item.sender_skill}</Grid>
+          {isPending && <Grid item xs={6}><b>Requested Skill:</b> {item.requested_skill || "N/A"}</Grid>}
+          <Grid item xs={6}><b>Location:</b> {item.location || "Online"}</Grid>
+          <Grid item xs={6}><b>Email:</b> {item.email || "Hidden until accepted"}</Grid>
+          <Grid item xs={6}><b>Availability:</b> {renderAvailability(item.time_availability)}</Grid>
+          {isPending && (
+            <Grid item xs={12}>
+              <Stack direction="row" spacing={1}>
+                <Button variant="contained" sx={{ backgroundColor: "#52ab98", '&:hover': { backgroundColor: "#52ab98" } }} onClick={() => handleAccept(item.id)}>ACCEPT</Button>
+                <Button variant="contained" sx={{ backgroundColor: "#ff5c5c", '&:hover': { backgroundColor: "#d32f2f" } }} onClick={() => handleReject(item.id)}>REJECT</Button>
+              </Stack>
+            </Grid>
+          )}
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+
+  const renderTable = (rows, isPending = false) => (
+    <TableContainer component={Paper} sx={{ backgroundColor: "#f2f2f2", borderRadius: 3, boxShadow: 3 }}>
+      <Table>
+        <TableHead sx={{ backgroundColor: "#2b6777", "& .MuiTableCell-head": { color: "white" } }}>
+          <TableRow>
+            <TableCell align="center"><b>Name</b></TableCell>
+            <TableCell align="center"><b>Skill</b></TableCell>
+            {isPending && <TableCell align="center"><b>Requested Skill</b></TableCell>}
+            <TableCell align="center"><b>Location</b></TableCell>
+            <TableCell align="center"><b>Availability</b></TableCell>
+            <TableCell align="center"><b>{isPending ? "Actions" : "Email"}</b></TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.length > 0 ? rows.map((item) => (
+            <TableRow key={item.id} hover>
+              <TableCell align="center">{item.name || item.sender_name}</TableCell>
+              <TableCell align="center">{item.skill || item.sender_skill}</TableCell>
+              {isPending && <TableCell align="center">{item.requested_skill || "N/A"}</TableCell>}
+              <TableCell align="center">{item.location || "Online"}</TableCell>
+              <TableCell align="center">{renderAvailability(item.time_availability)}</TableCell>
+              <TableCell align="center">
+                {isPending ? (
+                  <Stack direction="row" spacing={1} justifyContent="center">
+                    <Button variant="contained" size="small" sx={{ backgroundColor: "#52ab98", '&:hover': { backgroundColor: "#2b6777" } }} onClick={() => handleAccept(item.id)}>Accept</Button>
+                    <Button variant="contained" size="small" sx={{ backgroundColor: "#ff5c5c", '&:hover': { backgroundColor: "#d32f2f" } }} onClick={() => handleReject(item.id)}>Reject</Button>
+                  </Stack>
+                ) : (
+                  item.email || "Hidden until accepted"
+                )}
+              </TableCell>
             </TableRow>
-          </TableHead>
-          <TableBody>
-            {acceptedMatches.length > 0 ? (
-              acceptedMatches.map((match) => (
-                <TableRow key={match.id}>
-                  <TableCell>{match.name}</TableCell>
-                  <TableCell>{match.skill}</TableCell>
-                  <TableCell>{match.location || "Online"}</TableCell>
-                  <TableCell>{match.time_availability}</TableCell>
-                  <TableCell>{match.email || "Email not available"}</TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} style={{ textAlign: "center" }}>No accepted matches</TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+          )) : (
+            <TableRow>
+              <TableCell colSpan={isPending ? 6 : 5} align="center">
+                No {isPending ? "pending" : "accepted"} requests
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+
+  return (
+    <Container maxWidth="lg" sx={{ py: 5 }}>
+      <Box mb={6}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="h5" color="#2b6777">Pending Requests</Typography>
+          <ToggleButtonGroup size="small" value={pendingView} exclusive onChange={(e, v) => v && setPendingView(v)}>
+            <ToggleButton value="table" sx={{ backgroundColor: pendingView === 'table' ? '#2b6777' : '#52ab98', color: pendingView === 'table' ? 'white' : 'black', '&:hover': { backgroundColor: '#52ab98', color: 'white' } }}>TABLE</ToggleButton>
+            <ToggleButton value="card" sx={{ backgroundColor: pendingView === 'card' ? '#2b6777' : '#52ab98', color: pendingView === 'card' ? 'white' : 'black', '&:hover': { backgroundColor: '#52ab98', color: 'white' } }}>CARD</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        {pendingView === "card"
+          ? pendingRequests.map((req) => renderCard(req, true))
+          : renderTable(pendingRequests, true)}
+      </Box>
+
+      <Box>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="h5" color="#2b6777">Accepted Matches</Typography>
+          <ToggleButtonGroup size="small" value={acceptedView} exclusive onChange={(e, v) => v && setAcceptedView(v)}>
+            <ToggleButton value="table" sx={{ backgroundColor: acceptedView === 'table' ? '#2b6777' : '#52ab98', color: acceptedView === 'table' ? 'white' : 'black', '&:hover': { backgroundColor: '#52ab98', color: 'white' } }}>TABLE</ToggleButton>
+            <ToggleButton value="card" sx={{ backgroundColor: acceptedView === 'card' ? '#2b6777' : '#52ab98', color: acceptedView === 'card' ? 'white' : 'black', '&:hover': { backgroundColor: '#52ab98', color: 'white' } }}>CARD</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        {acceptedView === "card"
+          ? acceptedMatches.map((m) => renderCard(m))
+          : renderTable(acceptedMatches)}
+      </Box>
 
       {notification && (
-        <Snackbar open autoHideDuration={6000} onClose={() => setNotification(null)}>
-          <Alert onClose={() => setNotification(null)} severity={notification.severity} sx={{ width: "100%" }}>
+        <Snackbar open autoHideDuration={5000} onClose={() => setNotification(null)}>
+          <Alert severity={notification.severity} onClose={() => setNotification(null)} sx={{ width: "100%" }}>
             {notification.message}
           </Alert>
         </Snackbar>
