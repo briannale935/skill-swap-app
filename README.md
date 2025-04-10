@@ -82,11 +82,11 @@ Enhancements as specified in 'User Stories' (ex. key word search)
 
 **Input**
 **To Sign In:**
-Email: aithy5@example.com
-Password: pass123 
+Email: nogc@example.com
+Password: password123 
 
-Email: brianna@example.com
-Password: pass123 
+Email: thuyan@example.com
+Password: password123 
 
-Email: derek5@example.com
-Password: pass123 
+Email: der@example.com
+Password: password123 
