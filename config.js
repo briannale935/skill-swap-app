@@ -1,9 +1,12 @@
-let config = {
-  host: 'localhost',
-  user: 'btle',
-  port: '3306',
-  password: 'MSCI245-student',
-  database: 'btle'
+import dotenv from 'dotenv';
+dotenv.config();
+
+const config = {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 };
- 
+
 export default config;

@@ -8,7 +8,7 @@ SkillSwap is an innovative peer-to-peer learning platform that empowers users to
 
 Core Features
 
-1️⃣ User Registration, Login & Profile Management
+1. User Registration, Login & Profile Management
 
 Users register and log in using Firebase Authentication, ensuring secure access.
 
@@ -16,7 +16,7 @@ Profiles include key details such as name, skill(s) they can teach, skill(s) the
 
 Users can easily edit and update their profiles to reflect new interests and schedule changes.
 
-2️⃣ Skill Matching & Request System
+2. Skill Matching & Request System
 
 A smart matching system connects users based on the skill they wish to learn and the skill they can teach.
 
@@ -26,7 +26,7 @@ Once both users accept the request, contact details are revealed, allowing them 
 
 This mutual exchange eliminates financial barriers and promotes diverse learning opportunities.
 
-3️⃣ Matches Tab
+3. Matches Tab
 
 Pending Matches: Displays users who have requested to swap skills with you but are awaiting your response.
 
@@ -34,7 +34,7 @@ Accepted Matches: Shows users with whom you’ve successfully completed a skill 
 
 Users can accept or reject invites directly within the interface, ensuring an intuitive and seamless user experience.
 
-4️⃣ Reviews & Ratings
+4. Reviews & Ratings
 
 After successfully completing a skill swap, users can review and rate their learning experience.
 
@@ -48,7 +48,7 @@ A rating on a scale of 1-5
 
 This feature fosters a trust-based environment, ensuring quality exchanges and improving user credibility over time.
 
-5️⃣ Blog & Discussion Threads
+5. Blog & Discussion Threads
 
 Users can create blog posts by selecting a topic, adding relevant tags, and writing a detailed description.
 
@@ -60,33 +60,12 @@ Future improvements will focus on making the blog more descriptive to facilitate
 
 How to Run the Project
 
-1️⃣ Open codespaces
-
-2️⃣ Install dependances 
+Install dependancies 
 npm i 
 cd client 
 npm i 
 cd ..
 
-3️⃣ Start the app
+Start the app
 
 yarn dev
-
-Future Enhancements
-
-Logout Page
-Matches feature 
-Review features 
-
-Enhancements as specified in 'User Stories' (ex. key word search) 
-
-**Input**
-**To Sign In:**
-Email: nogc@example.com
-Password: password123 
-
-Email: thuyan@example.com
-Password: password123 
-
-Email: der@example.com
-Password: password123 
