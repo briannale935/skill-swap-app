@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-SkillSwap is an innovative peer-to-peer learning platform that empowers users to exchange skills with others in a mutually beneficial way. Unlike traditional e-learning platforms that require expensive subscriptions or one-time payments, SkillSwap creates a collaborative and cost-free learning environment where users teach and learn from one another. 
+SkillSwap is an innovative peer-to-peer learning platform that for users to exchange skills with others in a mutually beneficial way. 
 ---
 
 ## Core Features
@@ -45,7 +45,7 @@ SkillSwap is an innovative peer-to-peer learning platform that empowers users to
 ---
 ## System Demo
 
-[System Demo](https://skill-swap-demo.com)
+[System Demo](https://drive.google.com/file/d/1yL1SgeJELrHjcvZrw03fNm_wc5tyfGZb/view?usp=sharing)
 
 ## How to Run the Project
 
